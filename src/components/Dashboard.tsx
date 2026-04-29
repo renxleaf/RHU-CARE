@@ -1,12 +1,13 @@
 import { SURNAMES, FIRST_NAMES } from '../lib/commonData';
 import React, { useState, useEffect } from 'react';
-import { Plus, User, Clock, CheckCircle2, Trash2, Stethoscope, ShieldCheck, Search, Activity, FileText, ClipboardList, Thermometer, HeartPulse, Droplets, Scale, Ruler, Brain, RefreshCw, Beaker, Calendar, ClipboardCheck, Smartphone } from 'lucide-react';
-import { QueueItem, Patient, Role, Appointment } from '../types';
-import { cn, todayKey, uid, pst, fmtDate, fmtShort } from '../lib/utils';
+import { Plus, User, Clock, CheckCircle2, Trash2, Stethoscope, ShieldCheck, Search, Activity, FileText, ClipboardList, Thermometer, HeartPulse, Droplets, Scale, Ruler, Brain, RefreshCw, Beaker, Calendar, ClipboardCheck, Smartphone, Users } from 'lucide-react';
+import { QueueItem, Patient, Role, Appointment, Profile } from '../types';
+import { cn, todayKey, uid, pst, fmtDate, fmtShort, fmtTime } from '../lib/utils';
 import { getNandaNic } from '../lib/nandaNic';
 import Modal from './Modal';
 import MedicationGuide from './MedicationGuide';
-import { AnimatePresence } from 'motion/react';
+import ConfirmModal from './ConfirmModal';
+import { AnimatePresence, motion } from 'motion/react';
 
 interface DashboardProps {
   queue: {
@@ -33,14 +34,26 @@ interface DashboardProps {
   addToast: (msg: string, type?: 'g' | 'r' | 'b' | 'a') => void;
   refreshData: () => void;
   currentRole: Role;
+  profile: Profile;
 }
 
-export default function Dashboard({ queue, patients, appointments, addToast, refreshData, currentRole }: DashboardProps) {
+export default function Dashboard({ queue, patients, appointments, addToast, refreshData, currentRole, profile }: DashboardProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isConsultModalOpen, setIsConsultModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<QueueItem | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMedGuideOpen, setIsMedGuideOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Form states for Add Walk-in
   const [newName, setNewName] = useState('');
@@ -55,9 +68,11 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
   const [objective, setObjective] = useState(() => localStorage.getItem('rhu_draft_objective') || '');
   const [diagnosis, setDiagnosis] = useState(() => localStorage.getItem('rhu_draft_diagnosis') || '');
   const [plans, setPlans] = useState(() => localStorage.getItem('rhu_draft_plans') || '');
+  const [medicalSummary, setMedicalSummary] = useState(() => localStorage.getItem('rhu_draft_summary') || '');
   const [consultMeds, setConsultMeds] = useState(() => localStorage.getItem('rhu_draft_meds') || '');
   const [labOrders, setLabOrders] = useState(() => localStorage.getItem('rhu_draft_labs') || '');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const [medChecklist, setMedChecklist] = useState<string[]>(() => JSON.parse(localStorage.getItem('rhu_draft_med_checklist') || '[]'));
   const [labChecklist, setLabChecklist] = useState<string[]>(() => JSON.parse(localStorage.getItem('rhu_draft_lab_checklist') || '[]'));
   
@@ -66,11 +81,12 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
     localStorage.setItem('rhu_draft_objective', objective);
     localStorage.setItem('rhu_draft_diagnosis', diagnosis);
     localStorage.setItem('rhu_draft_plans', plans);
+    localStorage.setItem('rhu_draft_summary', medicalSummary);
     localStorage.setItem('rhu_draft_meds', consultMeds);
     localStorage.setItem('rhu_draft_labs', labOrders);
     localStorage.setItem('rhu_draft_med_checklist', JSON.stringify(medChecklist));
     localStorage.setItem('rhu_draft_lab_checklist', JSON.stringify(labChecklist));
-  }, [hpi, objective, diagnosis, plans, consultMeds, labOrders, medChecklist, labChecklist]);
+  }, [hpi, objective, diagnosis, plans, medicalSummary, consultMeds, labOrders, medChecklist, labChecklist]);
 
   // Vitals states
   const [vWeight, setVWeight] = useState('');
@@ -83,9 +99,16 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
   const [vCBG, setVCBG] = useState('');
 
   const today = todayKey();
-  const todayQueue = queue.data.filter(i => i.date === today).sort((a, b) => a.addedAt - b.addedAt);
-  const waiting = todayQueue.filter(i => i.status !== 'Done');
-  const done = todayQueue.filter(i => i.status === 'Done');
+  const waiting = queue.data
+    .filter(i => i.status !== 'Done')
+    .sort((a, b) => {
+      // Priority first, then by time added
+      if (a.priority === 'urgent' && b.priority !== 'urgent') return -1;
+      if (a.priority !== 'urgent' && b.priority === 'urgent') return 1;
+      return a.addedAt - b.addedAt;
+    });
+  
+  const done = queue.data.filter(i => i.status === 'Done' && i.date === today);
   const urgent = waiting.filter(i => i.priority === 'urgent');
 
   const todayAppts = appointments.data.filter(a => a.date === today && a.status !== 'Cancelled' && a.status !== 'Done');
@@ -94,40 +117,25 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
   useEffect(() => {
     if (queue.loading || patients.loading) return;
     
-    const isSeeded = localStorage.getItem('rhucare_seeded_v3');
+    const isSeeded = localStorage.getItem('rhucare_seeded_v4');
     if (isSeeded) return;
 
     if (queue.data.length === 0) {
       const demoQ: QueueItem[] = [
-        { id: uid(), name: 'Morales, Lourdes', age: '64', sex: 'F', concern: 'BP / Hypertension', priority: 'urgent', status: 'Waiting', av: 'bg-red-l text-red', initials: 'ML', philhealth: 'PH-0042', date: today, addedAt: Date.now() - 2400000, addedBy: 'System' },
-        { id: uid(), name: 'Reyes, Jose', age: '71', sex: 'M', concern: 'Chest pain / CAD', priority: 'urgent', status: 'Waiting', av: 'bg-amber-l text-amber', initials: 'JR', philhealth: 'SC-0071', date: today, addedAt: Date.now() - 2300000, addedBy: 'System' },
-        { id: uid(), name: 'Dela Cruz, Reynaldo', age: '52', sex: 'M', concern: 'DM Type 2 Follow-up', priority: 'regular', status: 'Waiting', av: 'bg-blue-l text-blue', initials: 'RD', philhealth: 'PH-0052', date: today, addedAt: Date.now() - 2200000, addedBy: 'System' },
-        { id: uid(), name: 'Santos, Pilita', age: '28', sex: 'F', concern: 'Fever / Asthma', priority: 'regular', status: 'Waiting', av: 'bg-teal-l text-teal', initials: 'PS', philhealth: 'IND-028', date: today, addedAt: Date.now() - 2100000, addedBy: 'System' },
-        { id: uid(), name: 'Garcia, Elena', age: '32', sex: 'F', concern: 'Prenatal — 28 weeks', priority: 'regular', status: 'Waiting', av: 'bg-green-l text-green', initials: 'GE', philhealth: 'PH-0032', date: today, addedAt: Date.now() - 2000000, addedBy: 'System' },
+        { id: uid(), name: 'Dela Cruz, Ricardo P.', age: '58', sex: 'M', concern: 'BP (160/100) / Dizziness', priority: 'urgent', status: 'Waiting', av: 'bg-blue-l text-blue', initials: 'RD', philhealth: '12-004567890-1', date: today, addedAt: Date.now() - 3600000, addedBy: 'System' },
+        { id: uid(), name: 'Santos, Maria Theresa L.', age: '42', sex: 'F', concern: 'Heavy Uterine Bleeding / Pale', priority: 'urgent', status: 'Waiting', av: 'bg-purple-l text-purple', initials: 'MS', philhealth: '01-234567890-3', date: today, addedAt: Date.now() - 3000000, addedBy: 'System' },
+        { id: uid(), name: 'Villanueva, Clara M.', age: '34', sex: 'F', concern: 'Prenatal / Elevated BP', priority: 'urgent', status: 'Waiting', av: 'bg-rose-l text-rose', initials: 'CV', philhealth: '56-789012345-7', date: today, addedAt: Date.now() - 2400000, addedBy: 'System' },
+        { id: uid(), name: 'Garcia, Mateo S.', age: '8', sex: 'M', concern: 'Shortness of breath / Cough', priority: 'regular', status: 'In Consult', av: 'bg-teal-l text-teal', initials: 'MG', philhealth: '23-456789012-4', date: today, addedAt: Date.now() - 1800000, addedBy: 'System' },
+        { id: uid(), name: 'Mendoza, Julian C.', age: '29', sex: 'M', concern: 'Diarrhea / Abdominal Pain', priority: 'regular', status: 'Waiting', av: 'bg-green-l text-green', initials: 'JM', philhealth: '45-678901234-6', date: today, addedAt: Date.now() - 1200000, addedBy: 'System' },
+        { id: uid(), name: 'Lopez, Sofia V.', age: '15', sex: 'F', concern: 'Burning urination / UTI', priority: 'regular', status: 'Waiting', av: 'bg-indigo-l text-indigo', initials: 'SL', philhealth: '78-901234567-9', date: today, addedAt: Date.now() - 600000, addedBy: 'System' },
+        { id: uid(), name: 'Reyes, Elena B.', age: '65', sex: 'F', concern: 'Joint Pain / Prescription Refill', priority: 'regular', status: 'Waiting', av: 'bg-amber-l text-amber', initials: 'ER', philhealth: '34-567890123-5', date: today, addedAt: Date.now() - 300000, addedBy: 'System' },
       ];
       demoQ.forEach(q => queue.addItem(q));
     }
     
-    if (patients.data.length === 0) {
-      const demoPt: Patient[] = [
-        { id: uid(), name: 'Morales, Lourdes', age: '64', sex: 'F', dob: '1962-04-12', address: 'Brgy. Dayap, Calauan, Laguna', philhealth: 'PH-0042', condition: 'Hypertension Stage 2', contact: '09123456789', lastVisit: fmtShort(pst()), av: 'bg-red-l text-red', initials: 'ML', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Dela Cruz, Reynaldo', age: '52', sex: 'M', dob: '1974-08-22', address: 'Brgy. Malinao, Calauan, Laguna', philhealth: 'PH-0052', condition: 'Diabetes Type 2', contact: '09987654321', lastVisit: 'Mar 1, 2026', av: 'bg-blue-l text-blue', initials: 'RD', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Santos, Pilita', age: '28', sex: 'F', dob: '1998-01-15', address: 'Brgy. Pansol, Calauan, Laguna', philhealth: 'IND-028', condition: 'Asthma / Bronchitis', contact: '09112223333', lastVisit: 'Feb 10, 2026', av: 'bg-teal-l text-teal', initials: 'PS', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Garcia, Elena', age: '32', sex: 'F', dob: '1994-11-30', address: 'Brgy. Kanluran, Calauan, Laguna', philhealth: 'PH-0032', condition: 'G2P1 28 weeks AOG', contact: '09445556666', lastVisit: 'Mar 5, 2026', av: 'bg-green-l text-green', initials: 'GE', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Bautista, Andres', age: '45', sex: 'M', dob: '1981-05-20', address: 'Brgy. Imok, Calauan, Laguna', philhealth: 'PH-0081', condition: 'CKD Stage 3', contact: '09171112222', lastVisit: 'Apr 2, 2026', av: 'bg-purple-l text-purple', initials: 'AB', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Cruz, Maria', age: '19', sex: 'F', dob: '2007-12-10', address: 'Brgy. Bangyas, Calauan, Laguna', philhealth: 'DEP-0019', condition: 'UTI / Dysuria', contact: '09183334444', lastVisit: 'Apr 10, 2026', av: 'bg-pink-l text-pink', initials: 'MC', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Lopez, Ricardo', age: '38', sex: 'M', dob: '1988-02-28', address: 'Brgy. Prinza, Calauan, Laguna', philhealth: 'PH-0038', condition: 'Gouty Arthritis', contact: '09195556666', lastVisit: 'Mar 20, 2026', av: 'bg-amber-l text-amber', initials: 'RL', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Perez, Sofia', age: '5', sex: 'F', dob: '2021-06-15', address: 'Brgy. Dayap, Calauan, Laguna', philhealth: 'DEP-0005', condition: 'Cough / Colds', contact: '09207778888', lastVisit: 'Apr 12, 2026', av: 'bg-orange-l text-orange', initials: 'SP', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Mercado, Juan', age: '67', sex: 'M', dob: '1959-10-05', address: 'Brgy. Lamot, Calauan, Laguna', philhealth: 'SC-0067', condition: 'COPD', contact: '09219990000', lastVisit: 'Apr 5, 2026', av: 'bg-slate-l text-slate', initials: 'JM', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Ramos, Beatriz', age: '24', sex: 'F', dob: '2002-03-12', address: 'Brgy. Sto. Tomas, Calauan, Laguna', philhealth: 'PH-0024', condition: 'Anemia', contact: '09221112222', lastVisit: 'Mar 15, 2026', av: 'bg-indigo-l text-indigo', initials: 'BR', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Castro, Fernando', age: '59', sex: 'M', dob: '1967-07-25', address: 'Brgy. Balayhangin, Calauan, Laguna', philhealth: 'PH-0059', condition: 'Post-Stroke Rehab', contact: '09233334444', lastVisit: 'Apr 8, 2026', av: 'bg-cyan-l text-cyan', initials: 'FC', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Villanueva, Clara', age: '41', sex: 'F', dob: '1985-11-16', address: 'Brgy. Dayap, Calauan, Laguna', philhealth: 'PH-0041', condition: 'Hyperthyroidism', contact: '09245556666', lastVisit: 'Apr 1, 2026', av: 'bg-rose-l text-rose', initials: 'CV', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-        { id: uid(), name: 'Santiago, Mateo', age: '12', sex: 'M', dob: '2014-01-05', address: 'Brgy. Dayap, Calauan, Laguna', philhealth: 'DEP-0012', condition: 'Dengue Follow-up', contact: '09257778888', lastVisit: 'Apr 14, 2026', av: 'bg-lime-l text-lime', initials: 'MS', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      ];
-      demoPt.forEach(p => patients.addItem(p));
-    }
+    // REDUNDANT SEEDING REMOVED - Handled by App.tsx
 
-    localStorage.setItem('rhucare_seeded_v3', 'true');
+    localStorage.setItem('rhucare_seeded_v4', 'true');
   }, [queue.loading, patients.loading]);
 
   if (queue.loading || patients.loading) {
@@ -216,16 +224,18 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
   };
 
   const isClinical = currentRole === 'doctor' || currentRole === 'nurse' || currentRole === 'admin';
+  const canRegister = isClinical || currentRole === 'bhw';
 
   const handleConsult = (item: QueueItem) => {
     setSelectedItem(item);
-    if (isClinical && item.status === 'Waiting') {
+    if ((isClinical || currentRole === 'bhw') && item.status === 'Waiting') {
       queue.updateItem(item.id, { status: 'In Consult' });
     }
     setHpi(item.hpi || '');
     setObjective(item.objective || '');
     setDiagnosis(item.diagnosis || '');
     setPlans(item.plan || '');
+    setMedicalSummary(item.medicalSummary || '');
     setConsultMeds(item.medications || '');
     setLabOrders(item.labOrders || '');
     setLabChecklist(item.labOrders ? item.labOrders.split(', ').map(l => l.trim()) : []);
@@ -269,6 +279,7 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
       objective,
       diagnosis,
       plan: plans,
+      medicalSummary,
       medications: consultMeds,
       labOrders,
       vitals: {
@@ -307,37 +318,73 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
     addToast(`${selectedItem.name} — consult saved ✓`, 'g');
   };
 
+  const handleAiSummarize = () => {
+    if (!hpi && !objective && !diagnosis) {
+      addToast('Enter notes to summarize', 'a');
+      return;
+    }
+    setIsSummarizing(true);
+    setTimeout(() => {
+      let summary = `CASE SUMMARY:\n`;
+      summary += `• CC: ${selectedItem?.concern || 'N/A'}\n`;
+      if (hpi) summary += `• Findings: ${hpi.slice(0, 50)}${hpi.length > 50 ? '...' : ''}\n`;
+      if (objective) summary += `• Vitals: BP ${vBP || '--'}, Temp ${vTemp || '--'}\n`;
+      if (diagnosis) summary += `• DX: ${diagnosis}\n`;
+      summary += `• Assessment: Patient presents with clinical markers consistent with primary complaint. Interventions initiated.`;
+      
+      setMedicalSummary(summary);
+      setIsSummarizing(false);
+      addToast('Medical notes summarized ✓', 'b');
+    }, 1200);
+  };
+
   const handleAiSuggest = () => {
     if (!selectedItem) return;
     setIsAiLoading(true);
     
-    // Process clinical detail from specialized NANDA-I / NIC Library
+    // Process clinical detail from specialized Knowledge Engine
     setTimeout(() => {
-      const profile = getNandaNic(selectedItem.concern, vBP, vCBG);
+      const profile = getNandaNic(selectedItem.concern, vBP, vCBG, vTemp);
+      const isDoctor = currentRole === 'doctor';
       
-      // FDAR Format Construction
-      let fdarDiagnosis = `FOCUS: ${profile.diagnosis}`;
+      // Clinical Identity
+      let clinicalTitle = isDoctor ? 'DoctorAI Diagnostics Engine' : 'NurseAI Clinical Co-Pilot';
+      let diagnosisHeader = isDoctor ? `ICD-11: ${profile.icdCode} (${profile.icdTitle})` : `FOCUS: ${profile.icdCode} (${profile.icdTitle}) — ${profile.diagnosis}`;
       
-      let fdarPlan = `FOCUS: ${profile.diagnosis}\n\n`;
-      
-      fdarPlan += `DATA:\n`;
-      fdarPlan += `Subjective: Patient reports "${selectedItem.concern}".\n`;
-      fdarPlan += `Objective: Vitals recorded as BP ${vBP || '---'}, CBG ${vCBG || '---'}, Temp ${vTemp || '---'}°C. ${profile.explanation}\n\n`;
-      
-      fdarPlan += `ACTION:\n`;
-      fdarPlan += profile.nic.map(n => `• ${n}`).join('\n');
-      if (profile.education && profile.education.length > 0) {
-        fdarPlan += `\n• Education: ${profile.education.join(', ')}`;
+      if (isDoctor) {
+        setDiagnosis(`${profile.icdCode} ${profile.icdTitle}`);
+      } else {
+        setDiagnosis(diagnosisHeader);
       }
-      fdarPlan += `\n\n`;
-      
-      fdarPlan += `RESPONSE:\n`;
-      fdarPlan += profile.noc.map(n => `• ${n}`).join('\n');
 
-      setDiagnosis(fdarDiagnosis);
-      setPlans(fdarPlan);
+      // FDAR / SOAP Format Construction
+      let clinicalPlan = `DATA:\n`;
+      clinicalPlan += `• S: Patient reports "${selectedItem.concern}". ${selectedItem.name} describes onset as acute.\n`;
+      clinicalPlan += `• O: BP ${vBP || '---'}, HR ${vHR || '---'}bpm, RR ${vRR || '---'}cpm, Temp ${vTemp || '---'}°C, SpO2 ${vSpO2 || '---'}%.\n`;
+      if (selectedItem.concern.toLowerCase().includes('bleed')) {
+        clinicalPlan += `• Physical: Observed active vaginal bleeding. Pale palpebral conjunctiva noted. Weak rapid pulse.\n`;
+      }
+      clinicalPlan += `• Assessment: ${profile.explanation}\n\n`;
+      
+      clinicalPlan += `ACTION (Interventions):\n`;
+      clinicalPlan += profile.nic.map(n => `• ${n}`).join('\n');
+      if (isDoctor) {
+        clinicalPlan += `\n• Order stat diagnostic panel: ${profile.labOrders?.join(', ') || 'RBC/Hgb'}`;
+        clinicalPlan += `\n• Initiate protocol for definitive management of ${profile.icdTitle}.`;
+      }
+      clinicalPlan += `\n\n`;
+      
+      clinicalPlan += `RESPONSE (Expected Outcomes):\n`;
+      clinicalPlan += profile.noc.map(n => `• ${n}`).join('\n');
+
+      if (profile.labOrders && profile.labOrders.length > 0) {
+        setLabOrders(profile.labOrders.join(', '));
+        setLabChecklist(profile.labOrders);
+      }
+
+      setPlans(clinicalPlan);
       setIsAiLoading(false);
-      addToast(`${currentRole === 'doctor' ? 'Clinical' : 'Nursing'} FDAR Plan Suggested ✓`, 'b');
+      addToast(`${clinicalTitle}: ${profile.icdCode} analysis complete`, 'b');
     }, 1500);
   };
 
@@ -361,432 +408,437 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
   };
 
   const handleRemove = (item: QueueItem) => {
-    if (confirm(`Remove ${item.name} from queue?`)) {
-      queue.removeItem(item.id);
-      addToast(`${item.name} removed`, 'r');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove from Queue',
+      message: `Are you sure you want to remove ${item.name} from the queue?`,
+      onConfirm: () => {
+        queue.removeItem(item.id);
+        addToast(`${item.name} removed`, 'r');
+      }
+    });
   };
 
   const patientRecord = selectedItem ? patients.data.find(p => p.name.toLowerCase() === selectedItem.name.toLowerCase()) : null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-8 pb-10">
+      {/* Dynamic Header with Status Indicator */}
+      {/* Header - Softened & Wide */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
         <div className="flex flex-col">
-          <h2 className="text-[18px] font-bold">Queue</h2>
-          <p className="text-[13px] text-txt2">{fmtDate(pst())}</p>
+          <h2 className="text-[28px] font-black tracking-tight text-txt flex items-center gap-3 italic">
+            Patient Hub
+            <span className="text-[9px] bg-green-l text-green px-2.5 py-0.5 rounded-full border border-green-m/30 font-black uppercase tracking-widest animate-pulse shadow-sm">RHU Live</span>
+          </h2>
+          <p className="text-[13px] text-txt2 font-bold tracking-tight opacity-70">{profile.facility} · {fmtDate(pst())}</p>
         </div>
-        <button 
-          onClick={handleRefresh} 
-          disabled={isRefreshing}
-          className={cn("btn btn-w btn-sm flex items-center gap-2 transition-all", isRefreshing && "opacity-70 cursor-not-allowed")}
-        >
-          <span className={cn("inline-block", isRefreshing && "animate-spin")}>🔄</span>
-          {isRefreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div 
-          onClick={() => setIsMedGuideOpen(true)}
-          className="bg-slate-900 border border-slate-800 rounded-r-lg p-5 text-white shadow-xl flex flex-col justify-between cursor-pointer hover:bg-slate-800 transition-all hover:scale-[1.02] active:scale-95 group"
-        >
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-500/20 rounded-lg group-hover:bg-blue-500 transition-colors">
-                <ClipboardCheck size={20} className="text-blue-400 group-hover:text-white" />
-              </div>
-              <h3 className="text-[13px] font-black tracking-tight uppercase">Medication Guide</h3>
-            </div>
-            <p className="text-[11px] opacity-60 leading-tight">Step-by-step checklist to prevent administration errors during interruptions.</p>
-          </div>
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest bg-blue-400/10 px-2 py-0.5 rounded">Design Fix #1</span>
-            <span className="text-[10px] font-black uppercase text-white/40">Open Tool →</span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-r-lg p-5 text-slate-900 shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-slate-100 rounded-lg">
-                <Smartphone size={20} className="text-slate-600" />
-              </div>
-              <h3 className="text-[13px] font-black tracking-tight uppercase">Edge Node Health</h3>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center text-[10px] font-bold">
-                <span className="text-slate-400 uppercase">Device</span>
-                <span>TechLife Pad Plus (Helio G91)</span>
-              </div>
-              <div className="flex justify-between items-center text-[10px] font-bold">
-                <span className="text-slate-400 uppercase">Battery</span>
-                <span className="text-green-600">84% (10h 12m left)</span>
-              </div>
-              <div className="flex justify-between items-center text-[10px] font-bold">
-                <span className="text-slate-400 uppercase">Sensors</span>
-                <span className="flex items-center gap-1"><Droplets size={10} className="text-blue-500" /> USB Bridge Active</span>
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Distributed Ledger: Synchronized</span>
-          </div>
-        </div>
-
-        <div className="bg-blue border border-blue-600 rounded-r-lg p-5 text-white shadow-xl flex flex-col justify-between">
-          <div>
-            <h3 className="text-[13px] font-black tracking-tight uppercase mb-1">Queue Throughput</h3>
-            <p className="text-[11px] opacity-80 mb-3">Live optimization active.</p>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-[24px] font-black tracking-tighter">183%</span>
-            <span className="text-[10px] uppercase font-bold opacity-70 tracking-widest">Efficiency GAIN</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <MetricCard label="Waiting Queue" value={waiting.length} delta={waiting.length > 5 ? "Busy today" : "Normal traffic"} deltaUp={waiting.length > 5} />
-        {currentRole === 'admin' ? (
-          <MetricCard label="Official Correspondence" value={4} delta="2 Pending Review" deltaUp />
-        ) : (
-          <MetricCard label="Served Today" value={done.length} delta="↑ 12.3% vs yesterday" deltaUp />
-        )}
-        {currentRole === 'doctor' ? (
-          <MetricCard label="Critical Lab Results" value={2} delta="Requires Review" deltaDown />
-        ) : (
-          <MetricCard label="Urgent Cases" value={urgent.length} delta={urgent.length > 0 ? "Requires attention" : "No urgent cases"} deltaDown={urgent.length > 0} />
-        )}
-      </div>
-
-      {currentRole === 'admin' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-slate-900 border border-slate-800 rounded-r-lg p-6 text-white shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <RefreshCw className="text-blue-400 animate-spin-slow" size={24} />
-              <div>
-                <h3 className="text-[16px] font-black tracking-tight uppercase">Liaison System Active</h3>
-                <p className="text-[12px] opacity-60">Connected to DOH Central & Provincial Boards</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl">
-                <span className="text-[13px] font-medium opacity-80">PhilHealth Reimbursement (Q1)</span>
-                <span className="text-[11px] font-black uppercase text-green-400 bg-green-400/10 px-2 py-0.5 rounded">Sent</span>
-              </div>
-              <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl">
-                <span className="text-[13px] font-medium opacity-80">WHO Malaria Program Liaison</span>
-                <span className="text-[11px] font-black uppercase text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">Draft</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-blue border border-blue-600 rounded-r-lg p-6 text-white shadow-xl flex flex-col justify-between">
-            <div>
-              <h3 className="text-[16px] font-black tracking-tight uppercase mb-1">Global Health Port</h3>
-              <p className="text-[12px] opacity-80 mb-4">Secure communication bridge for national protocols.</p>
-            </div>
-            <button className="w-full bg-white/20 hover:bg-white/30 py-3 rounded-xl text-[14px] font-bold transition-all backdrop-blur-md">
-              Secure Protocol Access
-            </button>
-          </div>
-        </div>
-      )}
-
-      {todayAppts.length > 0 && (
-        <div className="mb-8 overflow-x-auto pb-2 scrollbar-hide">
-          <div className="flex items-center gap-3 mb-4">
-            <Calendar className="text-blue" size={20} />
-            <h2 className="text-[16px] font-bold text-txt">Today's Appointments</h2>
-          </div>
-          <div className="flex gap-4 min-w-max">
-            {todayAppts.slice(0, 5).map(appt => (
-              <div key={appt.id} className="bg-blue-l border border-blue-m p-4 rounded-xl min-w-[240px] shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-blue uppercase tabular-nums">{appt.time}</span>
-                    <span className={cn(
-                      "chip text-[10px]",
-                      appt.status === 'Confirmed' ? "bg-green-100 text-green-700 border-green-200" : "bg-amber-100 text-amber-700 border-amber-200"
-                    )}>
-                      {appt.status}
-                    </span>
-                  </div>
-                  <div className="text-[14px] font-bold text-txt mb-0.5 line-clamp-1">{appt.name}</div>
-                  <div className="text-[12px] text-txt2 line-clamp-1">{appt.type}</div>
-                </div>
-                <button 
-                  onClick={() => {
-                    // Quick add from appointment to queue
-                    handleQuickAddToQueue(appt);
-                  }}
-                  className="mt-4 w-full bg-blue text-white py-1.5 rounded-lg text-[12px] font-bold hover:bg-blue-600 transition-all"
-                >
-                  Join Queue
-                </button>
-              </div>
-            ))}
-            {todayAppts.length > 5 && (
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl min-w-[120px] flex flex-col items-center justify-center text-txt3">
-                <span className="text-[14px] font-bold">+{todayAppts.length - 5} more</span>
-              </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleRefresh} 
+            disabled={isRefreshing}
+            className={cn(
+              "p-2.5 bg-panel border-2 border-border/40 rounded-xl shadow-sm hover:shadow-sh transition-all group",
+              isRefreshing && "opacity-70 cursor-not-allowed"
             )}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-panel border border-border rounded-r-lg shadow-sh overflow-hidden">
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <h2 className="text-[18px] font-bold text-txt">Today's Queue</h2>
-          <button onClick={() => setIsAddModalOpen(true)} className="btn btn-p">
-            <Plus size={16} /> Add Walk-in
+            title="Refresh System State"
+          >
+            <RefreshCw className={cn("text-txt2 group-hover:text-blue transition-colors", isRefreshing && "animate-spin")} size={20} />
           </button>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-bg border-b border-border">
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">#</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Patient Name</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Purpose</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Status</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {waiting.map((item, idx) => (
-                <tr key={item.id} className="border-b border-panel2 hover:bg-bg/50 transition-colors">
-                  <td className="p-4 px-6 text-[14px] font-bold text-txt2">{idx + 1}</td>
-                  <td className="p-4 px-6">
-                    <div className="text-[14px] font-semibold text-txt">{item.name}</div>
-                    <div className="text-[12px] text-txt2">{item.age}y · {item.sex}</div>
-                  </td>
-                  <td className="p-4 px-6 text-[14px] text-txt2">{item.concern}</td>
-                  <td className="p-4 px-6">
-                    <span className={cn(
-                      "chip",
-                      item.status === 'Waiting' ? "bg-amber-l text-amber border-amber-m" :
-                      item.status === 'In Consult' ? "bg-blue-l text-blue border-blue-m" :
-                      "bg-green-l text-green border-green-m"
-                    )}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="p-4 px-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                       {currentRole !== 'bhw' && (
-                         <button onClick={() => handleConsult(item)} className="p-2 text-blue hover:bg-blue-l rounded-md transition-colors" title="Clinical Consult">
-                           <Stethoscope size={18} />
-                         </button>
-                       )}
-                       <button onClick={() => handleMarkDone(item)} className="p-2 text-green hover:bg-green-l rounded-md transition-colors" title="Mark Done">
-                         <CheckCircle2 size={18} />
-                       </button>
-                       <button onClick={() => handleRemove(item)} className="p-2 text-txt3 hover:bg-red-l hover:text-red rounded-md transition-colors" title="Remove">
-                         <Trash2 size={18} />
-                       </button>
-                     </div>
-                  </td>
-                </tr>
-              ))}
-              {waiting.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-12 text-center text-txt3 italic">No patients in queue</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          
+          {canRegister && (
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold shadow-lg shadow-slate-900/10 hover:-translate-y-0.5 transition-all active:scale-95 uppercase tracking-widest text-[11px]"
+            >
+              <Plus size={18} />
+              <span>Register Intake</span>
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="card mt-8 bg-blue-l border-blue-m">
-        <div className="flex items-center gap-3 mb-3">
-          <ShieldCheck className="text-blue" size={24} />
-          <h3 className="text-[16px] font-bold text-blue">Digital Equity & Sovereign Data</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-start gap-2 text-[13px] text-txt">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue mt-1.5 shrink-0" />
-              <span>Optimized for <strong>TechLife Pad Plus</strong> (Helio G91) for low-resource efficiency.</span>
-            </div>
-            <div className="flex items-start gap-2 text-[13px] text-txt">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue mt-1.5 shrink-0" />
-              <span>Stores patient data offline via <strong>IndexedDB</strong> with AES-256 encryption.</span>
+      {/* Critical Alerts Bar */}
+      {(urgent.length > 0 || waiting.length > 8) && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="bg-red-l border border-red-m rounded-2xl p-4 flex items-center gap-4 overflow-hidden"
+        >
+          <div className="w-10 h-10 bg-red rounded-xl flex items-center justify-center text-white shrink-0 animate-pulse">
+            <ShieldCheck size={20} />
+          </div>
+          <div className="flex-1">
+            <div className="text-[14px] font-black text-red uppercase tracking-tight">Active Operation Alerts</div>
+            <div className="text-[12px] text-red-800 font-medium">
+              {urgent.length > 0 && `• ${urgent.length} urgent cases require triage `}
+              {waiting.length > 8 && `• High patient volume (${waiting.length} in queue) `}
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-start gap-2 text-[13px] text-txt">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue mt-1.5 shrink-0" />
-              <span>USB/Bluetooth sensor bridging enables diagnostic parity with urban clinics.</span>
-            </div>
-            <div className="flex items-start gap-2 text-[13px] text-txt">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue mt-1.5 shrink-0" />
-              <span>NurseAI analyses run locally via <strong>TensorFlow Lite</strong> (No Internet required).</span>
-            </div>
-          </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-blue-m/30 text-[12px] text-blue font-semibold italic leading-relaxed">
-          “The system strictly adheres to the Data Privacy Act of 2012, ensuring that patient data is secured, minimally processed, and never used without proper consent.”
-        </div>
-      </div>
+          <button className="text-[11px] font-black uppercase text-red border-b border-red/30 pb-0.5 hover:opacity-70 transition-opacity">
+            Action Protocol
+          </button>
+        </motion.div>
+      )}
 
-      <button 
-        onClick={() => setIsAddModalOpen(true)}
-        className="fixed right-4 bottom-5 w-[52px] h-[52px] rounded-full bg-blue text-white flex items-center justify-center text-[24px] shadow-[0_4px_16px_rgba(18,70,204,0.35)] active:scale-95 transition-transform z-25"
+      {/* High-Level Pulse Widgets */}
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+          }
+        }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
-        <Plus />
-      </button>
-
-      <AnimatePresence>
-        {isMedGuideOpen && (
-          <MedicationGuide onClose={() => setIsMedGuideOpen(false)} />
-        )}
-      </AnimatePresence>
-
-      {/* Add Walk-in Modal */}
-      <Modal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        title="Add Walk-in Patient"
-        subtitle="Added to today's queue · Saved on device"
-        footer={
-          <>
-            <button className="btn flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</button>
-            <button className="btn btn-p flex-1" onClick={handleAddQ}>Add to Queue ✓</button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3.5">
-          <div className="form-group relative">
-            <label className="form-label">Patient name</label>
-            <input 
-              className="form-input" 
-              placeholder="Last name, First name" 
-              value={newName} 
-              onChange={e => setNewName(e.target.value)} 
-              autoFocus 
-            />
-            {newName.length > 2 && (
-              <div className="absolute top-[100%] left-0 right-0 z-50 bg-white border border-border rounded-xl shadow-sh-md mt-1 overflow-hidden">
-                {patients.data
-                  .filter(p => p.name.toLowerCase().includes(newName.toLowerCase()))
-                  .slice(0, 4)
-                  .map(p => (
-                    <button 
-                      key={p.id}
-                      onClick={() => {
-                        setNewName(p.name);
-                        setNewAge(p.age);
-                        setNewSex(p.sex as any);
-                        setNewPhilhealth(p.philhealth);
-                      }}
-                      className="w-full px-4 py-3 text-left hover:bg-bg border-b border-border last:border-0 flex items-center justify-between group"
-                    >
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue">{p.name}</div>
-                        <div className="text-[11px] text-txt2">{p.age}y · {p.sex} · {p.address}</div>
-                      </div>
-                      <Plus size={14} className="text-blue opacity-0 group-hover:opacity-100" />
-                    </button>
-                  ))
-                }
-                {patients.data.filter(p => p.name.toLowerCase().includes(newName.toLowerCase())).length < 2 && 
-                  SURNAMES.filter(s => s.toLowerCase().includes(newName.toLowerCase())).slice(0, 3).map(s => (
-                    <button 
-                      key={s}
-                      onClick={() => setNewName(`${s}, `)}
-                      className="w-full px-4 py-2 text-left hover:bg-bg border-b border-border last:border-0 text-[13px] text-txt2 italic"
-                    >
-                      Suggested: {s}, [First Name]
-                    </button>
-                  ))
-                }
+        {/* Design Fix #1: Med Guide */}
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, scale: 0.95, y: 15 },
+            visible: { opacity: 1, scale: 1, y: 0 }
+          }}
+          whileHover={{ y: -4, scale: 1.01 }}
+          onClick={() => setIsMedGuideOpen(true)}
+          className="relative overflow-hidden bg-blue text-white rounded-[24px] p-6 shadow-xl shadow-blue/10 cursor-pointer group"
+        >
+          <div className="relative z-10 flex flex-col h-full justify-between">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-md">
+                <ClipboardCheck size={20} className="text-white" />
               </div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="form-group">
-              <label className="form-label">Age</label>
-              <input className="form-input" type="number" placeholder="Age" value={newAge} onChange={e => setNewAge(e.target.value)} inputMode="numeric" />
+              <h3 className="text-[12px] font-black tracking-tight uppercase">Medication Guide</h3>
             </div>
-            <div className="form-group">
-              <label className="form-label">Sex</label>
-              <select className="form-input" value={newSex} onChange={e => setNewSex(e.target.value)}>
-                <option value="F">Female</option>
-                <option value="M">Male</option>
-              </select>
+            <div>
+              <p className="text-[12px] text-white/80 leading-snug mb-4 font-medium italic">
+                Clinical safety protocols for safe environments.
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-black text-white/60 px-2 py-0.5 bg-white/10 rounded-full uppercase tracking-tighter">RA 10173</span>
+                <span className="text-[10px] font-bold">Open →</span>
+              </div>
             </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Chief complaint</label>
-            <input className="form-input" placeholder="e.g., BP check, fever, prenatal..." value={newConcern} onChange={e => setNewConcern(e.target.value)} />
+        </motion.div>
+
+        {/* Edge Node Health */}
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, scale: 0.95, y: 15 },
+            visible: { opacity: 1, scale: 1, y: 0 }
+          }}
+          whileHover={{ y: -4 }}
+          className="bg-white border border-border/40 rounded-[24px] p-6 shadow-sm flex flex-col justify-between"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-panel2 rounded-xl">
+              <Smartphone size={20} className="text-blue" />
+            </div>
+            <h3 className="text-[12px] font-black text-txt tracking-tight uppercase">Network Node</h3>
           </div>
-          <div className="form-group">
-            <label className="form-label">Priority</label>
-            <select className="form-input" value={newPriority} onChange={e => setNewPriority(e.target.value as any)}>
-              <option value="regular">Regular</option>
-              <option value="urgent">Urgent</option>
-            </select>
+          <div className="space-y-3 font-bold">
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-txt3 uppercase">Latency</span>
+              <span className="text-green">12ms</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-txt3 uppercase">Battery</span>
+              <div className="flex items-center gap-1.5 font-bold">
+                <div className="w-8 h-3 bg-panel2 rounded-full overflow-hidden border border-border">
+                  <div className="w-[84%] h-full bg-green rounded-full" />
+                </div>
+                <span className="text-txt text-[10px]">84%</span>
+              </div>
+            </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">PhilHealth / Patient ID</label>
-            <input className="form-input" placeholder="PH-XXXXXXXXXX (optional)" value={newPhilhealth} onChange={e => setNewPhilhealth(e.target.value)} />
+        </motion.div>
+
+        {/* Queue Throughput */}
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, scale: 0.95, y: 20 },
+            visible: { opacity: 1, scale: 1, y: 0 }
+          }}
+          whileHover={{ y: -6 }}
+          className="bg-green text-white rounded-[32px] p-8 shadow-2xl shadow-green/20 flex flex-col justify-between relative overflow-hidden"
+        >
+          <div className="relative z-10">
+            <h3 className="text-[14px] font-black tracking-tight uppercase mb-1">Queue Health</h3>
+            <p className="text-[12px] opacity-80 font-medium">Flow optimized by AI</p>
+          </div>
+          <div className="flex flex-col relative z-10">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[36px] font-black tracking-tighter">183%</span>
+              <span className="text-[11px] uppercase font-bold opacity-60">+12% gain</span>
+            </div>
+          </div>
+          <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+        </motion.div>
+
+        {/* Operational State */}
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, scale: 0.95, y: 15 },
+            visible: { opacity: 1, scale: 1, y: 0 }
+          }}
+          whileHover={{ y: -4 }}
+          className="bg-white border border-border/40 rounded-[24px] p-6 shadow-sm flex flex-col justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-l rounded-xl">
+              <Thermometer size={20} className="text-amber" />
+            </div>
+            <h3 className="text-[12px] font-black text-txt tracking-tight uppercase">Operational State</h3>
+          </div>
+          <div className="mt-3">
+            <div className="text-[24px] font-black text-txt tracking-tighter text-amber italic">Moderate</div>
+            <div className="text-[10px] text-txt2 font-bold uppercase tracking-widest mt-0.5">Wait: 14 mins</div>
+          </div>
+        </motion.div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Queue Section */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          <div className="bg-panel border border-border/60 shadow-sh rounded-[28px] overflow-hidden">
+            <div className="p-6 border-b border-border/40 flex items-center justify-between bg-white/40 backdrop-blur-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-3 h-3 bg-blue rounded-full animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.8)]" />
+                <h2 className="text-[18px] font-black text-txt tracking-tighter italic uppercase">Live Queue</h2>
+              </div>
+              <div className="flex items-center gap-2.5 text-[11px] font-bold text-blue bg-blue-l/50 px-4 py-2 rounded-full border border-blue-m/20 uppercase tracking-widest leading-none">
+                <Users size={16} />
+                <span>{waiting.length} Waiting</span>
+              </div>
+            </div>
+            
+            <div className="divide-y divide-border/20">
+              <AnimatePresence mode="popLayout">
+                {waiting.map((item, idx) => (
+                  <motion.div 
+                    layout
+                    key={item.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ delay: idx * 0.03 }}
+                    className={cn(
+                      "p-5 flex items-center gap-5 group transition-all hover:bg-panel2 relative border-l-4 border-transparent",
+                      item.priority === 'urgent' ? "border-l-red bg-red-l/5" : "hover:border-l-blue"
+                    )}
+                  >
+                    <div className="hidden sm:flex flex-col items-center justify-center w-8 text-[11px] font-black text-txt3 bg-panel2 h-8 rounded-xl shrink-0">
+                      {String(idx + 1).padStart(2, '0')}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h4 className="text-[15px] font-black text-txt truncate group-hover:text-blue transition-colors tracking-tight uppercase">
+                          {item.name}
+                        </h4>
+                        {item.priority === 'urgent' && (
+                          <span className="flex items-center gap-1 text-[9px] font-black bg-red text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                            <Activity size={10} strokeWidth={3} /> Triage A
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4 text-[12px] text-txt2 font-bold tracking-tight">
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          <User size={14} className="text-txt3" />
+                          {item.age}y · {item.sex}
+                        </span>
+                        <span className="flex items-center gap-2 px-3 py-0.5 bg-white border border-border/60 rounded-xl text-txt shadow-sm text-[11px]">
+                          <Stethoscope size={14} className="text-blue" />
+                          {item.concern}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <div className="hidden xl:flex flex-col items-end mr-2 opacity-50">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-txt3">{fmtTime(new Date(item.addedAt))}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {(isClinical || currentRole === 'bhw') && (
+                          <button 
+                            onClick={() => handleConsult(item)} 
+                            className="w-10 h-10 bg-blue text-white hover:bg-blue-d rounded-xl transition-all shadow-md shadow-blue/10 flex items-center justify-center active:scale-90"
+                            title={isClinical ? "Begin Consultation" : "Take Vitals"}
+                          >
+                            <Stethoscope size={18} />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleMarkDone(item)} 
+                          className="w-10 h-10 bg-green text-white hover:bg-green-d rounded-xl transition-all shadow-md shadow-green/10 flex items-center justify-center active:scale-90"
+                          title="Mark as Seen"
+                        >
+                          <CheckCircle2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              
+              {waiting.length === 0 && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-16 flex flex-col items-center justify-center text-txt3"
+                >
+                  <div className="w-20 h-20 bg-panel2 rounded-[32px] flex items-center justify-center mb-6 shadow-inner">
+                    <Users size={32} className="text-txt2 opacity-20" />
+                  </div>
+                  <div className="text-[20px] font-black text-txt mb-2 tracking-tighter uppercase italic">Station Clear</div>
+                  <p className="text-[13px] text-txt2 text-center max-w-[220px] font-medium leading-relaxed">No pending patients.</p>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Recently Completed */}
+          {done.length > 0 && (
+            <div className="bg-panel border border-border rounded-2xl overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
+              <div className="p-4 px-6 border-b border-border bg-slate-50 flex items-center justify-between">
+                <span className="text-[13px] font-bold text-txt2 uppercase tracking-wider">Recently Completed</span>
+                <span className="text-[11px] font-black text-green bg-green-l px-2 py-0.5 rounded-full">{done.length} Today</span>
+              </div>
+              <div className="divide-y divide-border/50">
+                {done.slice(0, 3).map(item => (
+                  <div key={item.id} className="p-4 px-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 size={16} className="text-green-500" />
+                      <div>
+                        <div className="text-[14px] font-bold text-txt">{item.name}</div>
+                        <div className="text-[11px] text-txt3">Processed at {fmtTime(new Date(item.doneAt!))}</div>
+                      </div>
+                    </div>
+                    <button className="p-2 text-txt3 hover:text-blue transition-colors">
+                      <FileText size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar Widgets */}
+        <div className="flex flex-col gap-8">
+          {/* Appointment Pulse */}
+          <div className="bg-panel border border-border/60 rounded-[28px] overflow-hidden shadow-sh">
+            <div className="p-6 border-b border-border/40 flex items-center justify-between bg-white">
+              <h3 className="text-[15px] font-black text-txt tracking-tight uppercase italic">Appointments</h3>
+              <div className="p-1.5 bg-blue-l rounded-xl">
+                <Calendar size={18} className="text-blue" />
+              </div>
+            </div>
+            <div className="p-5 flex flex-col gap-3">
+              {todayAppts.length > 0 ? (
+                todayAppts.slice(0, 4).map(appt => (
+                  <div key={appt.id} className="p-4 bg-panel2 border border-transparent rounded-[20px] flex items-center justify-between group hover:border-blue/10 hover:bg-white transition-all">
+                    <div>
+                      <div className="text-[10px] font-black text-blue uppercase mb-1 tracking-widest">{appt.time}</div>
+                      <div className="text-[13px] font-black text-txt truncate w-[140px] tracking-tight uppercase">{appt.name}</div>
+                    </div>
+                    <button 
+                      onClick={() => handleQuickAddToQueue(appt)}
+                      className="w-9 h-9 bg-blue text-white rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-blue/10 flex items-center justify-center active:scale-90"
+                    >
+                      <Plus size={18} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="p-10 text-center text-txt3 font-medium text-[13px] italic">
+                  No appointments today.
+                </div>
+              )}
+              {todayAppts.length > 4 && (
+                <button className="w-full py-3 text-[11px] font-black text-blue hover:translate-x-1 transition-transform uppercase tracking-widest">
+                  View Registry →
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* System Integrity */}
+          <div className="bg-slate-900 border border-white/5 rounded-[28px] p-8 shadow-xl relative overflow-hidden">
+            <div className="relative z-10">
+              <h3 className="text-[15px] font-black text-white mb-5 uppercase tracking-tight italic">System Health</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green rounded-full" />
+                    <span className="text-[12px] font-bold text-white/60 uppercase tracking-widest">Bridge</span>
+                  </div>
+                  <span className="text-[9px] font-black text-green px-2 py-0.5 bg-green/10 rounded-full">Encrypted</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue rounded-full shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
+                    <span className="text-[12px] font-bold text-white/60 uppercase tracking-widest">NurseAI</span>
+                  </div>
+                  <span className="text-[9px] font-black text-blue px-2 py-0.5 bg-blue/10 rounded-full">Optimal</span>
+                </div>
+              </div>
+              
+              <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <ShieldCheck size={16} className="text-blue" />
+                  <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Audit Mode</span>
+                </div>
+                <div className="text-[9px] text-white/15 font-mono leading-relaxed break-all">
+                  NODE_ID: {uid().slice(0, 8).toUpperCase()}
+                </div>
+              </div>
+            </div>
+            {/* Background flair */}
+            <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-blue opacity-5 rounded-full blur-3xl" />
           </div>
         </div>
-      </Modal>
+      </div>
 
-      {/* Consult Modal (SeriousMD Style) */}
+      {/* Floating Action for Mobile */}
+      <motion.button 
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setIsAddModalOpen(true)}
+        className="fixed right-6 bottom-6 w-[60px] h-[60px] rounded-full bg-sidebar text-white flex items-center justify-center text-[24px] shadow-2xl active:scale-95 transition-transform z-30 lg:hidden"
+      >
+        <Plus size={28} />
+      </motion.button>
+
+      {/* Clinical Consultation Modal */}
       <Modal
         isOpen={isConsultModalOpen}
         onClose={() => setIsConsultModalOpen(false)}
-        title={currentRole === 'bhw' ? `Vitals Intake — ${selectedItem?.name}` : selectedItem?.name || ''}
-        subtitle={`${selectedItem?.age || '?'}${selectedItem?.sex || ''} · ${currentRole === 'bhw' ? 'Pre-consult Vitals' : (selectedItem?.philhealth || 'Walk-in')}`}
-        footer={
-          <>
-            <button className="btn flex-1" onClick={() => setIsConsultModalOpen(false)}>Cancel</button>
-            <button className="btn btn-w btn-sm" onClick={() => { addToast(`Referral form generated for ${selectedItem?.name}`, 'b'); setIsConsultModalOpen(false); }}>Referral</button>
-            <button className="btn btn-p flex-1" onClick={handleSaveConsult}>
-              {currentRole === 'bhw' ? 'Log Vitals ✓' : (currentRole === 'doctor' ? 'Validate & Update EHR ✓' : 'Approve & Save ✓')}
-            </button>
-          </>
-        }
+        title="Clinical Consultation"
+        subtitle="Tier 2/3 Secure EHR Terminal"
       >
-        <div className="flex flex-col gap-5 max-h-[70vh] overflow-y-auto pr-2">
-          {/* Patient Info Header */}
-          <div className="flex items-center gap-4 bg-bg p-4 rounded-lg">
-            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-bold shrink-0", selectedItem?.av)}>
-              {selectedItem?.initials}
-            </div>
-            <div className="flex-1">
-              <div className="text-[16px] font-bold text-txt">{selectedItem?.name}</div>
-              <div className="text-[12px] text-txt2">
-                {patientRecord ? (
-                  <>Born: {patientRecord.dob} · {patientRecord.age}y · {patientRecord.sex === 'F' ? 'Female' : 'Male'} · {patientRecord.civilStatus}</>
-                ) : (
-                  <>{selectedItem?.age}y · {selectedItem?.sex === 'F' ? 'Female' : 'Male'} · Walk-in</>
-                )}
+        <div className="flex flex-col gap-6">
+          {selectedItem && (
+            <div className="flex items-center gap-4 p-5 bg-panel border-2 border-blue/10 rounded-[28px] shadow-sm mb-6">
+              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-inner", selectedItem.av)}>
+                {selectedItem.initials}
               </div>
-              <div className="flex items-center gap-3 mt-1 text-[11px]">
-                <div className="text-blue font-bold tracking-tight px-1.5 py-0.5 bg-blue-l/50 rounded">
-                  Blood Type: {patientRecord?.bloodType || 'Unknown'}
-                </div>
-                {patientRecord?.occupation && (
-                  <div className="text-txt2 italic">
-                    {patientRecord.occupation}
-                  </div>
-                )}
-                <div className="text-red font-bold">
-                  {patientRecord?.emergencyContact?.phone && `Emergency: ${patientRecord.emergencyContact.phone}`}
-                </div>
+              <div className="flex-1">
+                <div className="text-[20px] font-black text-txt tracking-tight leading-none uppercase italic">{selectedItem.name}</div>
+                <div className="text-[12px] text-txt2 font-bold mt-1.5 uppercase tracking-widest">{selectedItem.age}y · {selectedItem.sex} · PhilHealth: {selectedItem.philhealth}</div>
+              </div>
+              <div className="ml-auto text-right">
+                <div className="text-[10px] text-txt3 uppercase font-black tracking-widest mb-1">Encounter ID</div>
+                <div className="px-3 py-1 bg-panel2 rounded-xl text-[12px] font-mono font-bold text-blue border border-border">#{selectedItem.id.slice(0, 8)}</div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Social Profile & Information */}
           {patientRecord && (
-            <div className="grid grid-cols-2 gap-3 p-3 bg-panel2 border border-border rounded-lg">
+            <div className="grid grid-cols-2 gap-4 p-5 bg-panel border border-border rounded-[28px] shadow-sm">
               <div>
                 <div className="text-[10px] text-txt2 uppercase font-black tracking-tight mb-0.5">Birth Place</div>
                 <div className="text-[12px] font-semibold">{patientRecord.birthPlace || '—'}</div>
@@ -828,40 +880,53 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
                 <FileText size={14} className="text-blue" /> Health Record
               </div>
 
-              {/* NurseAI Assistant Interface */}
+              {/* AI Assistant Interface - Specialized by Role */}
               {isClinical && (
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-white shadow-xl overflow-hidden relative group">
-                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <Brain size={60} />
+                <div className="bg-slate-950 border border-slate-900 rounded-3xl p-6 text-white shadow-2xl overflow-hidden relative group mb-2">
+                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-700"></div>
+                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                    {currentRole === 'doctor' ? <Activity size={80} /> : <Brain size={80} />}
                   </div>
-                  <div className="flex items-center justify-between mb-3 relative z-10">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <Brain className="text-blue-400" size={16} />
+                  <div className="flex items-center justify-between mb-4 relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-blue-500/20 rounded-2xl border border-blue-500/30">
+                        {currentRole === 'doctor' ? <Activity className="text-blue-400" size={24} /> : <Brain className="text-blue-400" size={24} />}
                       </div>
                       <div>
-                        <h3 className="text-[12px] font-black tracking-tight uppercase">NurseAI Clinical Assistant</h3>
-                        <p className="text-[9px] text-blue-400/80 font-bold uppercase tracking-widest">Optimized for RHU Edge</p>
+                        <h3 className="text-[14px] font-black tracking-tight uppercase">
+                          {currentRole === 'doctor' ? 'DoctorAI Diagnostics Engine' : 'NurseAI Clinical Co-Pilot'}
+                        </h3>
+                        <p className="text-[10px] text-blue-400/80 font-bold uppercase tracking-[0.2em]">
+                          {currentRole === 'doctor' ? 'ICD-11 / Clinical Analysis' : 'NANDA-I / NIC / NOC Analysis'}
+                        </p>
                       </div>
                     </div>
                     <button 
                       onClick={handleAiSuggest}
                       disabled={isAiLoading}
                       className={cn(
-                        "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                        isAiLoading ? "bg-slate-800 text-slate-500 cursor-wait" : "bg-blue hover:bg-blue-600 text-white shadow-lg shadow-blue/20"
+                        "px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all",
+                        isAiLoading ? "bg-slate-800 text-slate-500 cursor-wait" : "bg-blue hover:bg-blue-400 text-white shadow-xl shadow-blue/20 hover:scale-105 active:scale-95"
                       )}
                     >
                       {isAiLoading ? (
-                        <span className="flex items-center gap-2"><RefreshCw size={10} className="animate-spin" /> Analyzing...</span>
+                        <span className="flex items-center gap-2"><RefreshCw size={14} className="animate-spin" /> Deep Analysis...</span>
                       ) : (
-                        "Suggest FDAR Plan"
+                        currentRole === 'doctor' ? "Diagnostic Check" : "Generate FDAR Logic"
                       )}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-tight relative z-10">
-                    Click suggest to generate a standardized nursing plan based on NANDA-I/NIC/NOC protocols.
-                  </p>
+                  <div className="flex gap-4 relative z-10 bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <div className="flex-1">
+                      <div className="text-[9px] text-white/40 uppercase font-black tracking-widest mb-1">Knowledge Engine</div>
+                      <div className="text-[11px] text-blue-100 font-medium leading-tight italic">
+                        {currentRole === 'doctor' 
+                          ? `Analyzing vitals & history for differential diagnosis (${selectedItem?.concern || 'General'})`
+                          : `Analyzing current vitals vs ${selectedItem?.concern?.split('/')[0].trim() || 'clinical indicators'} for diagnostic indicators...`
+                        }
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -893,25 +958,55 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
               </div>
 
               <div className="form-group">
-                <label className="form-label flex items-center gap-2"><ShieldCheck size={14} className="text-accent" /> Focus / Diagnosis (FDAR)</label>
+                <label className="form-label flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-accent" /> 
+                  {currentRole === 'doctor' ? 'Clinical Impression (ICD)' : 'Focus / Diagnosis (FDAR)'}
+                </label>
                 <textarea 
                   className="form-input text-[13px] font-mono" 
                   rows={2} 
-                  placeholder="FOCUS: [NANDA-I Diagnosis]..." 
+                  placeholder={currentRole === 'doctor' ? "e.g., GA20 (Heavy uterine bleeding)..." : "FOCUS: [NANDA-I Diagnosis]..."} 
                   value={diagnosis} 
                   onChange={e => setDiagnosis(e.target.value)} 
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Action & Response (FDAR Plans)</label>
+                <label className="form-label">{currentRole === 'doctor' ? 'Clinical Plan / Orders' : 'Action & Response (FDAR Plans)'}</label>
                 <textarea 
                   className="form-input text-[12px] font-mono leading-relaxed" 
                   rows={8} 
-                  placeholder="DATA: ... ACTION: ... RESPONSE: ..." 
+                  placeholder={currentRole === 'doctor' ? "SOAP / Plan details..." : "DATA: ... ACTION: ... RESPONSE: ..."} 
                   value={plans} 
                   onChange={e => setPlans(e.target.value)} 
                 />
+              </div>
+
+              {/* AI Medical Summary Feature */}
+              <div className="bg-blue/5 border border-blue/10 rounded-2xl p-4 mb-2">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-blue/20 rounded-lg">
+                      <Brain size={16} className="text-blue" />
+                    </div>
+                    <span className="text-[12px] font-black uppercase tracking-tight text-blue">AI Medical Summary</span>
+                  </div>
+                  <button 
+                    onClick={handleAiSummarize}
+                    disabled={isSummarizing}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-blue text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-d transition-all disabled:opacity-50"
+                  >
+                    {isSummarizing ? <RefreshCw size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                    {isSummarizing ? 'Analyzing...' : 'Generate Notes'}
+                  </button>
+                </div>
+                <textarea 
+                  className="w-full bg-white/50 border-none p-3 rounded-xl text-[12px] font-mono leading-relaxed text-txt outline-none min-h-[100px]" 
+                  placeholder="AI-generated medical notes will appear here..." 
+                  value={medicalSummary} 
+                  onChange={e => setMedicalSummary(e.target.value)} 
+                />
+                <p className="text-[9px] text-txt3 mt-2 italic">Summarizes HPI, Objective, and Diagnosis for rapid review.</p>
               </div>
 
               <div className="form-group">
@@ -1028,6 +1123,14 @@ export default function Dashboard({ queue, patients, appointments, addToast, ref
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+      />
     </div>
   );
 }

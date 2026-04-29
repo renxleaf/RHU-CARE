@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck, Trash2, Save, Key } from 'lucide-react';
+import { ShieldCheck, Trash2, Save, Key, Smartphone } from 'lucide-react';
 import { Profile } from '../types';
 import { saveObj } from '../lib/utils';
 
@@ -96,192 +96,216 @@ export default function ProfilePage({ profile, setProfile, addToast, onHardReset
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col">
-        <h2 className="text-[18px] font-bold">Profile & Settings</h2>
-        <p className="text-[13px] text-txt2">Saved to this device</p>
-      </div>
-
-      <div className="card">
-        <div className="text-[10px] font-bold text-txt2 uppercase tracking-wider mb-3.5">Personal information</div>
-        <div className="flex flex-col gap-3.5">
-          <div className="form-group">
-            <label className="form-label">Full name</label>
-            <input className="form-input" value={name} onChange={e => setName(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Role / Position</label>
-            <input className="form-input" value={role} onChange={e => setRole(e.target.value)} readOnly={!isAdmin} />
-            {!isAdmin && <p className="text-[10px] text-txt3 mt-1 italic">Contact Admin to change role</p>}
-          </div>
-          <div className="form-group">
-            <label className="form-label">Assigned Facility</label>
-            <select className="form-input" value={facility} onChange={e => setFacility(e.target.value)} disabled={!isAdmin}>
-              <option>Calauan RHU, Laguna</option>
-              <option>Calauan BHS — Dayap</option>
-              <option>Calauan BHS — Lamot</option>
-              <option>Calauan BHS — Mabacan</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Contact number</label>
-            <input className="form-input" placeholder="09XXXXXXXXX" value={contact} onChange={e => setContact(e.target.value)} />
-          </div>
-          <button className="btn btn-p w-full py-3" onClick={handleSaveProfile}><Save size={16} /> Save Profile ✓</button>
+    <div className="flex flex-col gap-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col">
+          <h2 className="text-[28px] font-black tracking-tight text-txt uppercase">Node Management</h2>
+          <p className="text-[14px] text-txt2 font-medium">Instance: Calauan RHU · RA 10173 Audit Secure</p>
         </div>
       </div>
 
-      <div className="card">
-        <div className="text-[10px] font-bold text-txt2 uppercase tracking-wider mb-3.5">Reminder Settings</div>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[13px] font-semibold">In-app Notifications</div>
-              <div className="text-[11px] text-txt2">Show alerts for upcoming appointments</div>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                className="sr-only peer" 
-                checked={inAppReminders} 
-                onChange={e => setInAppReminders(e.target.checked)} 
-              />
-              <div className="w-11 h-6 bg-border rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue"></div>
-            </label>
-          </div>
-          {!isPatient && (
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[13px] font-semibold">SMS Reminders</div>
-                <div className="text-[11px] text-txt2">Send SMS to patients 24h before</div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={smsReminders} 
-                  onChange={e => setSmsReminders(e.target.checked)} 
-                />
-                <div className="w-11 h-6 bg-border rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue"></div>
-              </label>
-            </div>
-          )}
-          <div className="form-group">
-            <label className="form-label">Reminder Interval</label>
-            <select 
-              className="form-input" 
-              value={reminderInterval} 
-              onChange={e => setReminderInterval(e.target.value)}
-            >
-              <option>30 minutes before</option>
-              <option>1 hour before</option>
-              <option>2 hours before</option>
-              <option>24 hours before</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {!isPatient && (
-        <div className="card">
-          <div className="text-[10px] font-bold text-txt2 uppercase tracking-wider mb-3.5">Data Management</div>
-          <div className="flex flex-col gap-3.5">
-            <button className="btn btn-w w-full py-3" onClick={handleBackup}>
-              <Save size={16} className="mr-2" /> Download Manual Backup (.json)
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="card">
-        <div className="text-[10px] font-bold text-txt2 uppercase tracking-wider mb-3.5">Change PIN</div>
-        <div className="flex flex-col gap-3.5">
-          <div className="form-group">
-            <label className="form-label">New 4-digit PIN</label>
-            <input 
-              className="form-input" 
-              type="password" 
-              maxLength={4} 
-              placeholder="4-digit PIN" 
-              inputMode="numeric" 
-              value={pin}
-              onChange={e => setPin(e.target.value)}
-            />
-          </div>
-          <button className="btn btn-p w-full py-3" onClick={handleSavePin}><Key size={16} /> Update PIN ✓</button>
-        </div>
-      </div>
-
-      {!isPatient && (
-        <div className="card">
-          <div className="text-[10px] font-bold text-txt2 uppercase tracking-wider mb-3.5">Hardware Ecosystem: PHP 25,000 Station</div>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[13px] font-semibold">TechLife Pad Plus</div>
-                <div className="text-[11px] text-txt2 text-blue">8,000mAh · Helio G91 · GCM V4</div>
-              </div>
-              <span className="chip bg-blue-l border-blue-m text-blue font-bold">Primary ✓</span>
-            </div>
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <div>
-                <div className="text-[13px] font-semibold">USB OTG Sensor Bridge</div>
-                <div className="text-[11px] text-txt2">BP / Oximeter / Thermometer</div>
-              </div>
-              <span className="chip bg-green-l border-green-m text-green">Connected ✓</span>
-            </div>
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <div>
-                <div className="text-[13px] font-semibold">Sensor Integrity Check</div>
-                <div className="text-[11px] text-txt2">Automatic recalibration sync</div>
-              </div>
-              <span className="chip bg-slate-100 border-border text-txt3">Last: 3h ago</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!isPatient && (
-        <div className="card">
-          <div className="text-[10px] font-bold text-txt2 uppercase tracking-wider mb-3.5">Security & Compliance — RA 10173</div>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[13px] font-semibold">Edge-AES Encryption</div>
-                <div className="text-[11px] text-txt2">Hardware-backed 256-bit AES</div>
-              </div>
-              <span className="chip bg-green-l border-green-m text-green">FIPS-140-2 ✓</span>
-            </div>
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <div>
-                <div className="text-[13px] font-semibold">Lost Device Protocol</div>
-                <div className="text-[11px] text-txt2">Remote wipe + MicroSD Recovery</div>
-              </div>
-              <span className="chip bg-blue-l border-blue-m text-blue">Armed ✓</span>
-            </div>
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <div>
-                <div className="text-[13px] font-semibold">Privacy by Default</div>
-                <div className="text-[11px] text-txt2">LGU Local-First Data Sovereignty</div>
-              </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2 flex flex-col gap-6">
+          <div className="bg-panel border border-border rounded-2xl shadow-sh-md overflow-hidden bg-white">
+            <div className="p-6 border-b border-border bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-[16px] font-black text-txt tracking-tight uppercase flex items-center gap-2">
+                User Identity Profile
+              </h3>
               <ShieldCheck className="text-blue" size={20} />
             </div>
-          </div>
-        </div>
-      )}
+            
+            <div className="p-8 flex flex-col gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="form-group">
+                  <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Operator Full Name</label>
+                  <input className="form-input" value={name} onChange={e => setName(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Assigned Node Rank</label>
+                  <input 
+                    className="form-input bg-slate-50 font-bold" 
+                    value={role} 
+                    readOnly={!isAdmin} 
+                    onChange={isAdmin ? e => setRole(e.target.value) : undefined}
+                  />
+                </div>
+              </div>
 
-      {isAdmin && (
-        <div className="card border-red/20 bg-red/5">
-          <div className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-3.5 italic">Danger Zone — Admin Only</div>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[13px] font-semibold text-red-700">System Hard Reset</div>
-              <div className="text-[11px] text-red-500">Purge all local records immediately</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="form-group">
+                  <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Clinical Station Assignment</label>
+                  <select className="form-input" value={facility} onChange={e => setFacility(e.target.value)} disabled={!isAdmin}>
+                    <option>Calauan RHU, Laguna</option>
+                    <option>Calauan BHS — Dayap</option>
+                    <option>Calauan BHS — Lamot</option>
+                    <option>Calauan BHS — Mabacan</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Direct Contact Bridge</label>
+                  <input className="form-input" placeholder="09XXXXXXXXX" value={contact} onChange={e => setContact(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <button 
+                  className="px-8 py-3 bg-sidebar text-white rounded-xl font-bold hover:shadow-lg shadow-sidebar/20 transition-all flex items-center gap-2"
+                  onClick={handleSaveProfile}
+                >
+                  <Save size={18} /> Update Registry
+                </button>
+              </div>
             </div>
-            <button className="btn btn-sm btn-d py-1.5 px-3 bg-red hover:bg-red-700" onClick={handleWipe}><Trash2 size={14} /> Wipe Data</button>
+          </div>
+
+          <div className="bg-panel border border-border rounded-2xl shadow-sh-md overflow-hidden bg-white">
+            <div className="p-6 border-b border-border bg-slate-50/50">
+              <h3 className="text-[16px] font-black text-txt tracking-tight uppercase">Operational Parameters</h3>
+            </div>
+            
+            <div className="p-8 space-y-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[15px] font-bold text-txt">In-app Telemetry Alerts</div>
+                  <div className="text-[13px] text-txt2">Surface real-time operational shifts and queue changes</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={inAppReminders} 
+                    onChange={e => setInAppReminders(e.target.checked)} 
+                  />
+                  <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue"></div>
+                </label>
+              </div>
+
+              {!isPatient && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[15px] font-bold text-txt">Patient SMS Gateway</div>
+                    <div className="text-[13px] text-txt2 text-blue">Automated schedule verification for confirmed bookings</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={smsReminders} 
+                      onChange={e => setSmsReminders(e.target.checked)} 
+                    />
+                    <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue"></div>
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      )}
+
+        <div className="flex flex-col gap-8">
+          {/* Hardware & Ecosystem Focus */}
+          <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-2xl relative overflow-hidden group">
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-blue/20 rounded-xl flex items-center justify-center text-blue shadow-glow">
+                  <Smartphone size={20} />
+                </div>
+                <h4 className="text-[14px] font-black uppercase tracking-tight">Active Edge Station</h4>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between border-b border-white/10 pb-2">
+                  <span className="text-[11px] text-slate-400 font-bold uppercase">Device</span>
+                  <span className="text-[12px] font-black tracking-tight">TechLife Pad Plus</span>
+                </div>
+                <div className="flex justify-between border-b border-white/10 pb-2">
+                  <span className="text-[11px] text-slate-400 font-bold uppercase">Bridge Status</span>
+                  <span className="text-[12px] font-black tracking-tight text-blue">USB Bridge Connected</span>
+                </div>
+                <div className="flex justify-between border-b border-white/10 pb-2">
+                  <span className="text-[11px] text-slate-400 font-bold uppercase">Sync Loop</span>
+                  <span className="text-[12px] font-black tracking-tight text-green">100% Accurate</span>
+                </div>
+              </div>
+
+              <div className="mt-8 bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">Hardware UUID</div>
+                <div className="text-[12px] font-mono opacity-60 truncate">RHU-CH-2026-LGU-4412-X</div>
+              </div>
+            </div>
+            {/* Design flair */}
+            <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-blue opacity-5 rounded-full blur-3xl group-hover:opacity-10 transition-opacity" />
+          </div>
+
+          <div className="card">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-txt3">
+                <Key size={20} />
+              </div>
+              <h4 className="text-[15px] font-black uppercase tracking-tight">Access Guardian</h4>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="form-group">
+                <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">System Entrance PIN</label>
+                <input 
+                  className="form-input bg-slate-50" 
+                  type="password" 
+                  maxLength={4} 
+                  placeholder="Update 4-digit PIN" 
+                  value={pin}
+                  onChange={e => setPin(e.target.value)}
+                />
+              </div>
+              <button 
+                className="w-full py-3 border-2 border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all"
+                onClick={handleSavePin}
+              >
+                Secure Terminal
+              </button>
+            </div>
+          </div>
+
+          {!isPatient && (
+            <div className="bg-panel border border-border rounded-2xl p-6 shadow-sh flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-l rounded-xl flex items-center justify-center text-amber shadow-sm">
+                  <Save size={20} />
+                </div>
+                <h4 className="text-[15px] font-black uppercase tracking-tight text-txt">Persistence</h4>
+              </div>
+              <p className="text-[12px] text-txt2 leading-relaxed">
+                Export and archive local database snapshots for off-grid auditing.
+              </p>
+              <button 
+                className="w-full py-3 bg-panel2 border border-border rounded-xl text-[13px] font-black uppercase tracking-widest text-txt hover:bg-slate-200 transition-all"
+                onClick={handleBackup}
+              >
+                Snapshot Database
+              </button>
+            </div>
+          )}
+
+          {isAdmin && (
+            <div className="bg-red-l/30 border border-red-m/20 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-l rounded-xl flex items-center justify-center text-red">
+                  <Trash2 size={20} />
+                </div>
+                <h4 className="text-[15px] font-black uppercase tracking-tight text-red">Critical Purge</h4>
+              </div>
+              <p className="text-[12px] text-red-800 leading-relaxed opacity-70">
+                Execute a total node reset. This wipes all encrypted local storage immediately.
+              </p>
+              <button 
+                className="w-full py-3 bg-red text-white rounded-xl text-[13px] font-black uppercase tracking-widest shadow-lg shadow-red/20 hover:opacity-90 active:scale-[0.98] transition-all"
+                onClick={handleWipe}
+              >
+                Factory Node Reset
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -35,6 +35,7 @@ export interface QueueItem {
   objective?: string;
   diagnosis?: string;
   plan?: string;
+  medicalSummary?: string;
   vitals?: {
     weight?: string;
     height?: string;

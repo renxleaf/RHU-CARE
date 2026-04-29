@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, Calendar as CalendarIcon, Clock, Edit2, Trash2, ShieldCheck, Info, Search } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, Clock, Edit2, Trash2, ShieldCheck, Info, Search, ChevronRight } from 'lucide-react';
 import { SURNAMES, FIRST_NAMES } from '../lib/commonData';
 import { Appointment, Role, Profile, Patient } from '../types';
 import { cn, todayKey, uid, pst, fmtDate, fmtShort } from '../lib/utils';
 import { MAX_PER_SLOT } from '../constants';
 import Modal from './Modal';
+import ConfirmModal from './ConfirmModal';
 
 interface AppointmentsProps {
   appointments: {
@@ -32,8 +33,21 @@ export default function Appointments({ appointments, patients, addToast, isBooki
   const [isBookModalOpen, setIsBookModalOpen] = useState(isBookingOnly || false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [editStatus, setEditStatus] = useState<Appointment['status'] | null>(null);
   const [name, setName] = useState(isPatient ? (profile?.name || '') : '');
   const [date, setDate] = useState(today);
+  const [search, setSearch] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   
   const availableSlots = [
     '7:00 AM', '7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
@@ -69,6 +83,12 @@ export default function Appointments({ appointments, patients, addToast, isBooki
   const [type, setType] = useState('General Check-up (Konsulta)');
   const [facility, setFacility] = useState('Calauan RHU, Laguna');
   const [notes, setNotes] = useState('');
+
+  React.useEffect(() => {
+    if (selectedAppt) {
+      setEditStatus(selectedAppt.status);
+    }
+  }, [selectedAppt]);
 
   React.useEffect(() => {
     setTime(getFirstAvailable(date));
@@ -154,15 +174,21 @@ export default function Appointments({ appointments, patients, addToast, isBooki
   const handleUpdateStatus = (id: string, status: Appointment['status']) => {
     appointments.updateItem(id, { status });
     setIsEditModalOpen(false);
-    addToast('Appointment updated ✓', 'g');
+    setEditStatus(null);
+    addToast('Status updated successfully ✓', 'g');
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Delete appointment for ${name}?`)) {
-      appointments.removeItem(id);
-      setIsEditModalOpen(false);
-      addToast('Appointment deleted', 'r');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Appointment',
+      message: `Are you sure you want to delete the appointment for ${name}?`,
+      onConfirm: () => {
+        appointments.removeItem(id);
+        setIsEditModalOpen(false);
+        addToast('Appointment deleted', 'r');
+      }
+    });
   };
 
   if (isBookingOnly || isPatient) {
@@ -353,12 +379,17 @@ export default function Appointments({ appointments, patients, addToast, isBooki
               </button>
               <button className="btn flex-1" onClick={() => setIsEditModalOpen(false)}>Close</button>
               {!isPatient && (
-                <button className="btn btn-p flex-1" onClick={() => selectedAppt && handleUpdateStatus(selectedAppt.id, (document.getElementById('es-stat') as HTMLSelectElement).value as any)}>Save ✓</button>
+                <button 
+                  className="btn btn-p flex-1 shadow-lg shadow-blue/20" 
+                  onClick={() => selectedAppt && editStatus && handleUpdateStatus(selectedAppt.id, editStatus)}
+                >
+                  Apply Update ✓
+                </button>
               )}
             </>
           }
         >
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50 p-3 rounded-xl">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Date</div>
@@ -380,12 +411,23 @@ export default function Appointments({ appointments, patients, addToast, isBooki
               </div>
             ) : (
               <div className="form-group">
-                <label className="form-label">Status</label>
-                <select className="form-input" id="es-stat" defaultValue={selectedAppt?.status}>
+                <label className="form-label mb-3">Action: Update Patient Status</label>
+                <div className="grid grid-cols-2 gap-2">
                   {['Scheduled', 'Confirmed', 'Waiting', 'In Progress', 'Done', 'No-show', 'Cancelled'].map(s => (
-                    <option key={s}>{s}</option>
+                    <button
+                      key={s}
+                      onClick={() => setEditStatus(s as any)}
+                      className={cn(
+                        "px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest border transition-all text-center",
+                        editStatus === s 
+                          ? "bg-blue text-white border-blue shadow-lg shadow-blue/20 scale-[1.02]" 
+                          : "bg-panel2 text-txt3 border-border hover:border-blue/30 hover:text-blue"
+                      )}
+                    >
+                      {s}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
             )}
 
@@ -397,123 +439,137 @@ export default function Appointments({ appointments, patients, addToast, isBooki
             )}
           </div>
         </Modal>
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col">
-          <h2 className="text-[18px] font-black tracking-tight leading-none uppercase">Appointments — Calauan RHU</h2>
-          <p className="text-[13px] text-txt2 mt-2">{fmtDate(pst())} · Manila Time (PST)</p>
+          <h2 className="text-[28px] font-black tracking-tight text-txt uppercase">Clinical Scheduler</h2>
+          <p className="text-[14px] text-txt2 font-medium">{fmtDate(pst())} · Sync: Edge Node Calauan</p>
         </div>
-        <button className="btn btn-p btn-sm" onClick={() => setIsBookModalOpen(true)}><Plus size={14} /> Book</button>
-      </div>
-
-      <div className="bg-panel border border-border rounded-r-lg shadow-sh overflow-hidden">
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <h2 className="text-[18px] font-bold text-txt">Today's Appointments</h2>
-          <button onClick={() => setIsBookModalOpen(true)} className="btn btn-p">
-            <Plus size={16} /> Book New
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsBookModalOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-sidebar text-white rounded-xl font-bold shadow-lg shadow-sidebar/20 hover:-translate-y-0.5 transition-all active:scale-95"
+          >
+            <Plus size={18} />
+            <span>Book Appointment</span>
           </button>
         </div>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-bg border-b border-border">
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Time</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Patient</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Type</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Status</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2 flex flex-col gap-6">
+          <div className="bg-panel border border-border rounded-2xl shadow-sh-md overflow-hidden bg-white">
+            <div className="p-6 border-b border-border bg-slate-50/50">
+              <h3 className="text-[18px] font-black text-txt tracking-tight uppercase flex items-center gap-2">
+                Today's Registry
+                <span className="text-[10px] bg-blue text-white px-2 py-0.5 rounded-full font-black animate-pulse">LIVE</span>
+              </h3>
+            </div>
+            
+            <div className="divide-y divide-border">
               {todayAppts.map(appt => (
-                <tr key={appt.id} className="border-b border-panel2 hover:bg-bg/50 transition-colors">
-                  <td className="p-4 px-6">
-                    <div className="text-[14px] font-bold text-blue tabular-nums">{appt.time}</div>
-                  </td>
-                  <td className="p-4 px-6">
-                    <div className="text-[14px] font-semibold text-txt">{appt.name}</div>
-                  </td>
-                  <td className="p-4 px-6">
-                    <div className="text-[13px] text-txt">{appt.type}</div>
-                    <div className="text-[11px] text-txt2">{appt.facility}</div>
-                  </td>
-                  <td className="p-4 px-6">
+                <div 
+                  key={appt.id} 
+                  className="p-5 hover:bg-slate-50 transition-all flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-6">
+                    <div className="flex flex-col items-center justify-center bg-blue-l rounded-xl p-2 min-w-[70px] border border-blue-m">
+                      <Clock size={16} className="text-blue mb-1" />
+                      <span className="text-[13px] font-black text-blue tabular-nums">{appt.time}</span>
+                    </div>
+                    <div>
+                      <div className="text-[16px] font-bold text-txt group-hover:text-blue transition-colors">{appt.name}</div>
+                      <div className="flex items-center gap-2 text-[12px] text-txt2 font-medium">
+                        <span>{appt.type}</span>
+                        <span>•</span>
+                        <span className="opacity-70">{appt.facility}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
                     <span className={cn(
-                      "chip",
+                      "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border",
                       appt.status === 'In Progress' ? "bg-blue-l border-blue-m text-blue" : 
                       (appt.status === 'Done' || appt.status === 'Confirmed') ? "bg-green-l border-green-m text-green" : "bg-amber-l border-amber-m text-amber"
                     )}>
                       {appt.status}
                     </span>
-                  </td>
-                  <td className="p-4 px-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => { setSelectedAppt(appt); setIsEditModalOpen(true); }} className="p-2 text-blue hover:bg-blue-l rounded-md transition-colors" title="Edit/Update">
-                        <Edit2 size={18} />
-                      </button>
-                      {currentRole !== 'bhw' && (
-                        <button onClick={() => handleDelete(appt.id, appt.name)} className="p-2 text-txt3 hover:bg-red-l hover:text-red rounded-md transition-colors" title="Delete">
-                          <Trash2 size={18} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {todayAppts.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-12 text-center text-txt3 italic">No appointments for today</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="mt-8 bg-panel border border-border rounded-r-lg shadow-sh overflow-hidden">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-[16px] font-bold text-txt">Upcoming Appointments (Next 10)</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-bg border-b border-border">
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Date & Time</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Patient</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {futureAppts.map(appt => (
-                <tr key={appt.id} className="border-b border-panel2 hover:bg-bg/50 transition-colors">
-                  <td className="p-4 px-6">
-                    <div className="text-[13px] font-bold text-txt">{fmtShort(new Date(appt.date + 'T00:00:00'))}</div>
-                    <div className="text-[12px] text-blue font-semibold">{appt.time}</div>
-                  </td>
-                  <td className="p-4 px-6">
-                    <div className="text-[14px] font-semibold text-txt">{appt.name}</div>
-                    <div className="text-[11px] text-txt2">{appt.type}</div>
-                  </td>
-                  <td className="p-4 px-6 text-right">
-                    <button onClick={() => { setSelectedAppt(appt); setIsEditModalOpen(true); }} className="p-2 text-txt3 hover:bg-bg rounded-md transition-colors">
-                      <Edit2 size={16} />
+                    <button 
+                      onClick={() => { setSelectedAppt(appt); setIsEditModalOpen(true); }} 
+                      className="p-2 text-txt3 hover:bg-slate-100 rounded-lg transition-all"
+                    >
+                      <Edit2 size={18} />
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-              {futureAppts.length === 0 && (
-                <tr>
-                   <td colSpan={4} className="p-12 text-center text-txt3 italic">No future appointments scheduled</td>
-                </tr>
+              
+              {todayAppts.length === 0 && (
+                <div className="p-20 flex flex-col items-center justify-center text-center opacity-30">
+                  <CalendarIcon size={48} className="mb-4" />
+                  <p className="text-[16px] font-bold">No Appointments Today</p>
+                </div>
               )}
-            </tbody>
-          </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div className="bg-panel border border-border rounded-2xl shadow-sh-md overflow-hidden bg-white">
+            <div className="p-6 border-b border-border bg-slate-50/50">
+              <h3 className="text-[15px] font-black text-txt tracking-tight uppercase">Upcoming (10 Days)</h3>
+            </div>
+            
+            <div className="divide-y divide-border">
+              {futureAppts.map(appt => (
+                <button 
+                  key={appt.id} 
+                  onClick={() => { setSelectedAppt(appt); setIsEditModalOpen(true); }}
+                  className="w-full p-4 hover:bg-slate-50 transition-all flex flex-col items-start gap-1 group"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[11px] font-black text-blue uppercase tracking-tighter">
+                      {fmtShort(new Date(appt.date + 'T00:00:00'))} @ {appt.time}
+                    </span>
+                    <ChevronRight size={14} className="text-txt3 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                  <div className="text-[14px] font-bold text-txt line-clamp-1">{appt.name}</div>
+                  <div className="text-[11px] text-txt2 font-medium line-clamp-1">{appt.type}</div>
+                </button>
+              ))}
+              
+              {futureAppts.length === 0 && (
+                <div className="p-10 flex flex-col items-center justify-center text-center opacity-30">
+                  <p className="text-[13px] font-bold">Empty Queue</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="bg-sidebar rounded-2xl p-6 text-white shadow-xl flex flex-col gap-4">
+            <ShieldCheck size={32} className="text-blue-300" />
+            <div>
+              <h4 className="text-[16px] font-black uppercase tracking-tight">Security Protocol</h4>
+              <p className="text-[12px] opacity-70 mt-1">All data is encrypted at rest and stored locally. RA 10173 Audit in effect.</p>
+            </div>
+            <div className="bg-white/10 p-3 rounded-xl border border-white/10 text-[11px] font-medium leading-relaxed italic">
+              "Privacy means people know what they're signing up for, in plain English and repeatedly."
+            </div>
+          </div>
         </div>
       </div>
 
@@ -592,19 +648,43 @@ export default function Appointments({ appointments, patients, addToast, isBooki
               <button className="btn btn-d btn-sm" onClick={() => selectedAppt && handleDelete(selectedAppt.id, selectedAppt.name)}>Delete</button>
             )}
             <button className="btn flex-1" onClick={() => setIsEditModalOpen(false)}>Cancel</button>
-            <button className="btn btn-p flex-1" onClick={() => selectedAppt && handleUpdateStatus(selectedAppt.id, (document.getElementById('es-stat') as HTMLSelectElement).value as any)}>Save ✓</button>
+            <button 
+              className="btn btn-p flex-1 shadow-lg shadow-blue/20" 
+              onClick={() => selectedAppt && editStatus && handleUpdateStatus(selectedAppt.id, editStatus)}
+            >
+              Confirm Update ✓
+            </button>
           </>
         }
       >
         <div className="form-group">
-          <label className="form-label">Status</label>
-          <select className="form-input" id="es-stat" defaultValue={selectedAppt?.status}>
+          <label className="form-label mb-3">Select Status Pathway</label>
+          <div className="grid grid-cols-2 gap-2">
             {['Scheduled', 'Confirmed', 'Waiting', 'In Progress', 'Done', 'No-show', 'Cancelled'].map(s => (
-              <option key={s}>{s}</option>
+              <button
+                key={s}
+                onClick={() => setEditStatus(s as any)}
+                className={cn(
+                  "px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest border transition-all text-center",
+                  editStatus === s 
+                    ? "bg-blue text-white border-blue shadow-lg shadow-blue/20 scale-[1.02]" 
+                    : "bg-panel2 text-txt3 border-border hover:border-blue/30 hover:text-blue"
+                )}
+              >
+                {s}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+      />
     </div>
   );
 }

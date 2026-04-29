@@ -1,9 +1,10 @@
 import { SURNAMES, FIRST_NAMES, BARANGAYS } from '../lib/commonData';
 import { useState } from 'react';
-import { Plus, Search, User, Edit2, Trash2, ShieldCheck, History, ClipboardList, PenTool } from 'lucide-react';
+import { Plus, Search, User, Edit2, Trash2, ShieldCheck, History, ClipboardList, PenTool, Activity } from 'lucide-react';
 import { Patient, Role } from '../types';
-import { cn, uid, pst, fmtShort } from '../lib/utils';
+import { cn, uid, pst, fmtShort, todayKey } from '../lib/utils';
 import Modal from './Modal';
+import ConfirmModal from './ConfirmModal';
 
 interface PatientRecordsProps {
   patients: {
@@ -26,6 +27,17 @@ export default function PatientRecords({ patients, addToast, currentRole }: Pati
   const [selectedPt, setSelectedPt] = useState<Patient | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   if (patients.loading) {
     return (
@@ -61,12 +73,17 @@ export default function PatientRecords({ patients, addToast, currentRole }: Pati
 
   const filtered = patients.data
     .filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
-                            (p.philhealth || '').toLowerCase().includes(search.toLowerCase()) ||
-                            (p.condition || '').toLowerCase().includes(search.toLowerCase());
+      const s = search.toLowerCase();
+      const matchesSearch = 
+        p.name.toLowerCase().includes(s) || 
+        (p.philhealth || '').toLowerCase().includes(s) ||
+        (p.condition || '').toLowerCase().includes(s) ||
+        (p.address || '').toLowerCase().includes(s) ||
+        (p.contact || '').toLowerCase().includes(s);
       
       if (filter === 'followup') return matchesSearch && p.followUp === true;
       if (filter === 'vaccination') return matchesSearch && p.type === 'vaccination';
+      if (filter === 'today') return matchesSearch && p.registeredAt?.startsWith(todayKey());
       return matchesSearch;
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -150,99 +167,131 @@ export default function PatientRecords({ patients, addToast, currentRole }: Pati
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Permanently delete ${name}? Cannot be undone.`)) {
-      patients.removeItem(id);
-      setIsEhrModalOpen(false);
-      addToast(`${name} deleted`, 'r');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Patient Record',
+      message: `Are you sure you want to permanently delete the records for ${name}? This action cannot be undone.`,
+      onConfirm: () => {
+        patients.removeItem(id);
+        setIsEhrModalOpen(false);
+        addToast(`${name} deleted`, 'r');
+      }
+    });
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col">
-          <h2 className="text-[18px] font-bold">Patient Records</h2>
-          <p className="text-[13px] text-txt2">EHR · Stored on device</p>
+          <h2 className="text-[28px] font-black tracking-tight text-txt">Patient Index</h2>
+          <p className="text-[14px] text-txt2 font-medium">Calauan RHU Centralized Registry · RA 10173 Audit Active</p>
         </div>
-        <button className="btn btn-p btn-sm" onClick={() => setIsNewModalOpen(true)}><Plus size={14} /> Register</button>
+        <div className="flex items-center gap-3">
+          {isClinical && (
+            <button 
+              onClick={() => setIsNewModalOpen(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-sidebar text-white rounded-xl font-bold shadow-lg shadow-sidebar/20 hover:-translate-y-0.5 transition-all active:scale-95"
+            >
+              <Plus size={18} />
+              <span>Register Patient</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="bg-panel border border-border rounded-r-lg shadow-sh overflow-hidden">
-        <div className="p-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-1 gap-2 max-w-2xl">
+      <div className="bg-panel border border-border rounded-2xl shadow-sh-md overflow-hidden bg-white">
+        <div className="p-6 border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-1 gap-3 max-w-3xl">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-txt3" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-txt3" size={20} />
               <input 
-                className="w-full pl-10 pr-4 py-2 bg-panel2 border border-border rounded-lg outline-none focus:border-accent text-[14px]" 
-                placeholder="Search by name, PhilHealth, or condition..." 
+                className="w-full pl-12 pr-4 py-3 bg-panel2 border border-border rounded-xl outline-none focus:border-blue transition-all text-[15px] font-medium"
+                placeholder="Search patient registry by name, PH-ID, or condition..." 
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
             <select 
-              className="bg-panel2 border border-border rounded-lg px-3 py-2 text-[14px] outline-none focus:border-accent"
+              className="bg-panel2 border border-border rounded-xl px-4 py-3 text-[14px] font-bold outline-none focus:border-blue cursor-pointer"
               value={filter}
               onChange={e => setFilter(e.target.value)}
             >
-              <option value="all">All Patients</option>
-              <option value="followup">Follow-up</option>
-              <option value="vaccination">Vaccination</option>
+              <option value="all">Database: All Records</option>
+              <option value="today">Filter: Registered Today</option>
+              <option value="followup">Filter: Follow-up</option>
+              <option value="vaccination">Filter: Vaccination</option>
             </select>
           </div>
-          <button onClick={() => setIsNewModalOpen(true)} className="btn btn-p">
-            <Plus size={16} /> Register New Patient
-          </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-bg border-b border-border">
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Patient</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">PhilHealth / ID</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Condition</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider">Last Visit</th>
-                <th className="p-4 px-6 text-[11px] font-bold text-txt2 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((pt, i) => (
-                <tr key={pt.id} className="border-b border-panel2 hover:bg-bg/50 transition-colors">
-                  <td className="p-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0", pt.av)}>
-                        {pt.initials}
-                      </div>
-                      <div>
-                        <div className="text-[14px] font-semibold text-txt">{pt.name}</div>
-                        <div className="text-[12px] text-txt2">{pt.age}y · {pt.sex}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4 px-6 text-[14px] text-txt2 font-mono">{pt.philhealth}</td>
-                  <td className="p-4 px-6">
-                    <span className="text-[13px] text-txt">{pt.condition}</span>
-                  </td>
-                  <td className="p-4 px-6 text-[13px] text-txt2">{pt.lastVisit}</td>
-                  <td className="p-4 px-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => { setSelectedPt(pt); setIsEhrModalOpen(true); }} className="p-2 text-blue hover:bg-blue-l rounded-md transition-colors">
-                        <Edit2 size={18} />
-                      </button>
-                      <button onClick={() => handleDelete(pt.id, pt.name)} className="p-2 text-txt3 hover:bg-red-l hover:text-red rounded-md transition-colors">
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-12 text-center text-txt3 italic">No patient records found</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 divide-x divide-y divide-border border-t border-border">
+          {filtered.map((pt) => (
+            <div 
+              key={pt.id} 
+              className="p-6 hover:bg-slate-50 transition-all group flex flex-col justify-between h-[200px]"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-[16px] font-black shrink-0 shadow-sm", pt.av)}>
+                    {pt.initials}
+                  </div>
+                  <div>
+                    <h3 className="text-[16px] font-bold text-txt group-hover:text-blue transition-colors line-clamp-1">{pt.name}</h3>
+                    <div className="text-[12px] text-txt2 font-medium">{pt.age}y · {pt.sex === 'F' ? 'Female' : 'Male'} · {pt.philhealth}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => { setSelectedPt(pt); setIsEhrModalOpen(true); }} 
+                    className="p-2.5 text-txt2 hover:bg-blue-l hover:text-blue rounded-xl transition-all"
+                    title="View Comprehensive EHR"
+                  >
+                    <ClipboardList size={18} />
+                  </button>
+                  {isClinical && (
+                    <button 
+                      onClick={() => handleDelete(pt.id, pt.name)} 
+                      className="p-2.5 text-txt3 hover:bg-red-l hover:text-red rounded-xl transition-all"
+                      title="Purge Record"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2 text-[13px] font-medium text-txt">
+                  <Activity size={14} className="text-blue" />
+                  <span className="line-clamp-1">{pt.condition}</span>
+                </div>
+                <div className="flex items-center gap-2 text-[12px] text-txt2">
+                  <History size={14} />
+                  <span>Last Visit: {pt.lastVisit}</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase text-txt3 tracking-widest">RA 10173 Audit Log: Active</span>
+                <button 
+                  onClick={() => { setSelectedPt(pt); setIsEhrModalOpen(true); }}
+                  className="text-[12px] font-bold text-blue hover:underline"
+                >
+                  Manage EHR →
+                </button>
+              </div>
+            </div>
+          ))}
+          
+          {filtered.length === 0 && (
+            <div className="col-span-full p-20 flex flex-col items-center justify-center text-center opacity-40">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <User size={32} />
+              </div>
+              <div className="text-[18px] font-bold mb-1">No Matching Records</div>
+              <p className="text-[14px]">Try adjusting your search or filters.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -558,6 +607,14 @@ export default function PatientRecords({ patients, addToast, currentRole }: Pati
           )}
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+      />
     </div>
   );
 }

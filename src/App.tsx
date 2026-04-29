@@ -8,7 +8,7 @@ import {
   Menu, Bell, Lock, User, LogOut, Moon, Sun, Plus, 
   LayoutDashboard, Calendar, Users, Heart, Truck, Building2, 
   ShieldCheck, Shield, FileText, Smartphone, Pause, ChevronRight, X, Brain,
-  Activity, Globe, FilePieChart
+  Activity, Globe, FilePieChart, Search, RefreshCw
 } from 'lucide-react';
 import { Role, Profile, QueueItem, Patient, Appointment, Dependent, TransportTicket } from './types';
 import { load, save, loadObj, saveObj, KEYS, pst, fmtTime, fmtDate, todayKey, uid, cn } from './lib/utils';
@@ -73,29 +73,61 @@ export default function App() {
   const dependents = useStorage<Dependent>('dependents', { enabled: isLoggedIn && isAllowed('dependents') });
   const appointments = useStorage<Appointment>('appointments', { enabled: isAllowed('appointments') });
 
+  // Agregate sync status
+  const statuses = [queue.syncStatus, patients.syncStatus, transport.syncStatus, dependents.syncStatus, appointments.syncStatus];
+  let globalSyncStatus = 'Sync Healthy';
+  let syncColor = 'text-green';
+  let syncBg = 'bg-green-l';
+  let syncIcon = <ShieldCheck size={20} />;
+
+  if (statuses.includes('error')) {
+    globalSyncStatus = 'Sync Error';
+    syncColor = 'text-red';
+    syncBg = 'bg-red-l';
+    syncIcon = <X size={20} />;
+  } else if (statuses.includes('conflict')) {
+    globalSyncStatus = 'Conflict detected';
+    syncColor = 'text-amber';
+    syncBg = 'bg-amber-l';
+    syncIcon = <Pause size={20} />;
+  } else if (statuses.includes('uploading')) {
+    globalSyncStatus = 'Uploading...';
+    syncColor = 'text-blue';
+    syncBg = 'bg-blue-l';
+    syncIcon = <Smartphone size={20} className="animate-bounce" />;
+  } else if (statuses.includes('verifying')) {
+    globalSyncStatus = 'Verifying...';
+    syncColor = 'text-purple';
+    syncBg = 'bg-purple-l';
+    syncIcon = <Shield size={20} className="animate-pulse" />;
+  } else if (statuses.includes('syncing')) {
+    globalSyncStatus = 'Syncing...';
+    syncColor = 'text-blue';
+    syncBg = 'bg-blue-l';
+    syncIcon = <RefreshCw size={20} className="animate-spin" />;
+  }
+
   // Seeding mockup patients (Staff only)
   useEffect(() => {
     if (patients.loading || patients.data.length > 0 || currentRole === 'patient') return;
     
-    const seeded = localStorage.getItem('rhucare_patients_seeded_v1');
+    const seeded = localStorage.getItem('rhucare_patients_seeded_v2');
     if (seeded) return;
 
     const mockupPatients: Patient[] = [
-      { id: 'p1', name: 'Dela Cruz, Maria', age: '45', sex: 'F', dob: '1981-05-12', address: 'Calauan, Laguna', philhealth: '12-345678901-2', condition: 'Hypertension', lastVisit: todayKey(), contact: '', av: '', initials: 'MD', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p2', name: 'Santos, Roberto', age: '62', sex: 'M', dob: '1964-08-22', address: 'Calauan, Laguna', philhealth: '01-234567890-3', condition: 'Diabetes Type 2', lastVisit: todayKey(), contact: '', av: '', initials: 'RS', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p3', name: 'Garcia, Juan', age: '28', sex: 'M', dob: '1998-02-14', address: 'Calauan, Laguna', philhealth: '23-456789012-4', condition: 'Acute Bronchitis', lastVisit: todayKey(), contact: '', av: '', initials: 'JG', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p4', name: 'Reyes, Elena', age: '54', sex: 'F', dob: '1972-11-30', address: 'Calauan, Laguna', philhealth: '34-567890123-5', condition: 'Asthma', lastVisit: todayKey(), contact: '', av: '', initials: 'ER', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p5', name: 'Ramos, Ricardo', age: '35', sex: 'M', dob: '1991-04-18', address: 'Calauan, Laguna', philhealth: '45-678901234-6', condition: 'Lower Back Pain', lastVisit: todayKey(), contact: '', av: '', initials: 'RR', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p6', name: 'Mendoza, Sofia', age: '22', sex: 'F', dob: '2004-09-05', address: 'Calauan, Laguna', philhealth: '56-789012345-7', condition: 'Urinary Tract Infection', lastVisit: todayKey(), contact: '', av: '', initials: 'SM', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p7', name: 'Bautista, Antonio', age: '48', sex: 'M', dob: '1978-03-27', address: 'Calauan, Laguna', philhealth: '67-890123456-8', condition: 'Gouty Arthritis', lastVisit: todayKey(), contact: '', av: '', initials: 'AB', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p8', name: 'Villanueva, Teresa', age: '67', sex: 'F', dob: '1959-12-11', address: 'Calauan, Laguna', philhealth: '78-901234567-9', condition: 'Chronic Kidney Disease', lastVisit: todayKey(), contact: '', av: '', initials: 'TV', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p9', name: 'Fernandez, Miguel', age: '31', sex: 'M', dob: '1995-07-19', address: 'Calauan, Laguna', philhealth: '89-012345678-0', condition: 'Skin Rash / Dermatitis', lastVisit: todayKey(), contact: '', av: '', initials: 'MF', registeredAt: new Date().toISOString(), registeredBy: 'System' },
-      { id: 'p10', name: 'Aquino, Corazon', age: '73', sex: 'F', dob: '1953-01-25', address: 'Calauan, Laguna', philhealth: '90-123456789-1', condition: 'Congestive Heart Failure', lastVisit: todayKey(), contact: '', av: '', initials: 'CA', registeredAt: new Date().toISOString(), registeredBy: 'System' }
+      { id: 'p1', name: 'Dela Cruz, Ricardo P.', age: '58', sex: 'M', dob: '1968-04-12', address: 'Brgy. Dayap, Calauan, Laguna', philhealth: '12-004567890-1', condition: 'Hypertension Stage 2', lastVisit: todayKey(), contact: '0917-555-0123', av: 'bg-blue-l text-blue', initials: 'RD', registeredAt: new Date().toISOString(), registeredBy: 'System' },
+      { id: 'p2', name: 'Santos, Maria Theresa L.', age: '42', sex: 'F', dob: '1984-08-22', address: 'Brgy. Malinao, Calauan, Laguna', philhealth: '01-234567890-3', condition: 'Diabetes Mellitus Type 2', lastVisit: todayKey(), contact: '0918-444-0456', av: 'bg-purple-l text-purple', initials: 'MS', registeredAt: new Date().toISOString(), registeredBy: 'System' },
+      { id: 'p3', name: 'Garcia, Mateo S.', age: '8', sex: 'M', dob: '2018-02-14', address: 'Brgy. Prinza, Calauan, Laguna', philhealth: '23-456789012-4', condition: 'Bronchial Asthma (Acute)', lastVisit: todayKey(), contact: '0919-333-0789', av: 'bg-teal-l text-teal', initials: 'MG', registeredAt: new Date().toISOString(), registeredBy: 'System' },
+      { id: 'p4', name: 'Reyes, Elena B.', age: '65', sex: 'F', dob: '1961-11-30', address: 'Brgy. Bangyas, Calauan, Laguna', philhealth: '34-567890123-5', condition: 'Osteoarthritis (Knees)', lastVisit: todayKey(), contact: '0920-222-0112', av: 'bg-amber-l text-amber', initials: 'ER', registeredAt: new Date().toISOString(), registeredBy: 'System' },
+      { id: 'p5', name: 'Mendoza, Julian C.', age: '29', sex: 'M', dob: '1997-09-05', address: 'Brgy. Lamot, Calauan, Laguna', philhealth: '45-678901234-6', condition: 'Acute Gastroenteritis', lastVisit: todayKey(), contact: '0921-111-0334', av: 'bg-green-l text-green', initials: 'JM', registeredAt: new Date().toISOString(), registeredBy: 'System' },
+      { id: 'p6', name: 'Villanueva, Clara M.', age: '34', sex: 'F', dob: '1992-05-18', address: 'Brgy. Dayap, Calauan, Laguna', philhealth: '56-789012345-7', condition: 'G2P1 32w AOG (Monitoring)', lastVisit: todayKey(), contact: '0922-000-0556', av: 'bg-rose-l text-rose', initials: 'CV', registeredAt: new Date().toISOString(), registeredBy: 'System' },
+      { id: 'p7', name: 'Bautista, Antonio R.', age: '51', sex: 'M', dob: '1975-03-27', address: 'Brgy. Imok, Calauan, Laguna', philhealth: '67-890123456-8', condition: 'Hyperuricemia (Gout)', lastVisit: todayKey(), contact: '0923-999-0778', av: 'bg-orange-l text-orange', initials: 'AB', registeredAt: new Date().toISOString(), registeredBy: 'System' },
+      { id: 'p8', name: 'Lopez, Sofia V.', age: '15', sex: 'F', dob: '2011-06-15', address: 'Brgy. Kanluran, Calauan, Laguna', philhealth: '78-901234567-9', condition: 'Recurrent UTI', lastVisit: todayKey(), contact: '0924-888-0990', av: 'bg-indigo-l text-indigo', initials: 'SL', registeredAt: new Date().toISOString(), registeredBy: 'System' }
     ];
 
     mockupPatients.forEach(p => patients.addItem(p));
-    localStorage.setItem('rhucare_patients_seeded_v1', 'true');
-    addToast('10 patient records synchronized ✓', 'b');
+    localStorage.setItem('rhucare_patients_seeded_v2', 'true');
+    addToast('8 detailed patient records synchronized ✓', 'b');
   }, [patients.loading]);
 
   useEffect(() => {
@@ -104,7 +136,7 @@ export default function App() {
     if (!allowed.includes(currentPage)) {
       setCurrentPage(allowed[0]);
     }
-  }, [currentRole]);
+  }, [currentRole, currentPage]);
 
   const updateProfile = async (newProfile: Profile) => {
     setProfile(newProfile);
@@ -342,7 +374,7 @@ export default function App() {
             <div className="w-4 h-4 border-2 border-blue border-t-transparent rounded-full animate-spin" />
             <div className="text-slate-900 font-black text-xl tracking-tight">RHUCARE</div>
           </div>
-          <p className="text-slate-400 text-[13px] font-medium mt-2 uppercase tracking-widest">Cloud Syncing...</p>
+          <p className={cn("text-[13px] font-medium mt-2 uppercase tracking-widest transition-colors", syncColor)}>{globalSyncStatus}</p>
         </motion.div>
       </div>
     );
@@ -370,27 +402,34 @@ export default function App() {
       {isNightMode && <div className="fixed inset-0 bg-[rgba(28,12,0,0.24)] pointer-events-none z-[55]" />}
       
       {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex w-[260px] bg-sidebar text-sidebar-item flex-col shrink-0 z-40">
-        <div className="p-[32px_32px_48px] flex items-center gap-3">
-          <div className="w-8 h-8 bg-accent rounded-md shrink-0" />
-          <span className="text-[24px] font-bold text-white tracking-tight">RHUCARE</span>
+      <aside className="hidden lg:flex w-[240px] bg-sidebar text-sidebar-item flex-col shrink-0 z-40 relative m-3 rounded-[32px] shadow-2xl overflow-hidden border border-white/5">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue/5 via-transparent to-transparent pointer-events-none" />
+        
+        <div className="p-8 pb-6 flex items-center gap-3 relative z-10">
+          <div className="w-10 h-10 bg-blue rounded-xl shadow-glow flex items-center justify-center text-white border-2 border-white/10">
+            <Shield size={22} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[20px] font-black text-white tracking-tighter leading-none italic uppercase">RHU</span>
+            <span className="text-[9px] font-black text-blue uppercase tracking-[0.2em] mt-1 ml-0.5 opacity-70">Care v4.0</span>
+          </div>
         </div>
         
-        <nav className="flex-1 overflow-y-auto">
+        <nav className="flex-1 overflow-y-auto px-2 relative z-10 custom-scrollbar">
           { (isAllowed('dashboard') || isAllowed('appointments')) && (
-            <SidebarSection title="Queue">
+            <SidebarSection title="Clinical Operations">
               {isAllowed('my_records') && (
                 <SidebarItem 
-                  icon={<FileText size={18} />} 
-                  label="My Health Records" 
+                  icon={<FileText size={20} />} 
+                  label="Health Registry" 
                   active={currentPage === 'my_records'} 
                   onClick={() => setCurrentPage('my_records')}
                 />
               )}
               {isAllowed('dashboard') && (
                 <SidebarItem 
-                  icon={<LayoutDashboard size={18} />} 
-                  label="EHR (Tier 1)" 
+                  icon={<LayoutDashboard size={20} />} 
+                  label="Clinical EHR" 
                   active={currentPage === 'dashboard'} 
                   onClick={() => setCurrentPage('dashboard')}
                   badge={queue.data.filter(i => i.status !== 'Done').length}
@@ -398,8 +437,8 @@ export default function App() {
               )}
               {isAllowed('appointments') && (
                 <SidebarItem 
-                  icon={<Calendar size={18} />} 
-                  label="Appointments" 
+                  icon={<Calendar size={20} />} 
+                  label="Scheduler" 
                   active={currentPage === 'appointments'} 
                   onClick={() => setCurrentPage('appointments')}
                   badge={appointments.data.filter(a => a.date === todayKey()).length}
@@ -409,35 +448,35 @@ export default function App() {
           )}
 
           { (isAllowed('patients') || isAllowed('dependents') || isAllowed('outreach')) && (
-            <SidebarSection title="Field & Community">
+            <SidebarSection title="Community Health">
               {isAllowed('patients') && (
                 <SidebarItem 
-                  icon={<Users size={18} />} 
-                  label="Patient Records" 
+                  icon={<Users size={20} />} 
+                  label="Patient Index" 
                   active={currentPage === 'patients'} 
                   onClick={() => setCurrentPage('patients')}
                 />
               )}
               {isAllowed('outreach') && (
                 <SidebarItem 
-                  icon={<Activity size={18} />} 
-                  label="DOH Outreach" 
+                  icon={<Globe size={20} />} 
+                  label="Field Outreach" 
                   active={currentPage === 'outreach'} 
                   onClick={() => setCurrentPage('outreach')}
                 />
               )}
               {isAllowed('doh_programs') && (
                 <SidebarItem 
-                  icon={<ShieldCheck size={18} />} 
-                  label="Barangay Health Programs" 
+                  icon={<Activity size={20} />} 
+                  label="DOH Programs" 
                   active={currentPage === 'doh_programs'} 
                   onClick={() => setCurrentPage('doh_programs')}
                 />
               )}
               {isAllowed('dependents') && (
                 <SidebarItem 
-                  icon={<Heart size={18} />} 
-                  label="Dependents" 
+                  icon={<Heart size={20} />} 
+                  label="Kinship Map" 
                   active={currentPage === 'dependents'} 
                   onClick={() => setCurrentPage('dependents')}
                 />
@@ -449,8 +488,8 @@ export default function App() {
             <SidebarSection title="Infrastructure">
               {isAllowed('transport') && (
                 <SidebarItem 
-                  icon={<Truck size={18} />} 
-                  label="Patient Transport" 
+                  icon={<Truck size={20} />} 
+                  label="Logistics Hub" 
                   active={currentPage === 'transport'} 
                   onClick={() => setCurrentPage('transport')}
                   badge={transport.data.filter(t => t.status !== 'Arrived' && t.status !== 'Cancelled').length}
@@ -459,40 +498,32 @@ export default function App() {
               )}
               {isAllowed('facilities') && (
                 <SidebarItem 
-                  icon={<Building2 size={18} />} 
-                  label="Health Facilities" 
+                  icon={<Building2 size={20} />} 
+                  label="Health Network" 
                   active={currentPage === 'facilities'} 
                   onClick={() => setCurrentPage('facilities')}
                 />
               )}
               {isAllowed('brainsnack') && (
                 <SidebarItem 
-                  icon={<Brain size={18} />} 
-                  label="Brain Snack (Tier 3)" 
+                  icon={<Brain size={20} />} 
+                  label="AI Intelligence" 
                   active={currentPage === 'brainsnack'} 
                   onClick={() => setCurrentPage('brainsnack')}
                 />
               )}
-              {isAllowed('research') && (
-                <SidebarItem 
-                  icon={<FileText size={18} />} 
-                  label="Formal Technical Report (Tier 3)" 
-                  active={currentPage === 'research'} 
-                  onClick={() => setCurrentPage('research')}
-                />
-              )}
               {isAllowed('fhsis') && (
                 <SidebarItem 
-                  icon={<FilePieChart size={18} />} 
-                  label="FHSIS Analytics" 
+                  icon={<FilePieChart size={20} />} 
+                  label="FHSIS Terminal" 
                   active={currentPage === 'fhsis'} 
                   onClick={() => setCurrentPage('fhsis')}
                 />
               )}
               {isAllowed('external') && (
                 <SidebarItem 
-                  icon={<Globe size={18} />} 
-                  label="External Affairs" 
+                  icon={<Globe size={20} />} 
+                  label="External Loop" 
                   active={currentPage === 'external'} 
                   onClick={() => setCurrentPage('external')}
                 />
@@ -500,33 +531,34 @@ export default function App() {
             </SidebarSection>
           )}
 
-          <div className="mt-auto pt-8">
+          <div className="mt-10 mb-10 space-y-1">
             {isAllowed('profile') && (
               <SidebarItem 
-                icon={<User size={18} />} 
-                label="Profile & Settings" 
+                icon={<User size={20} />} 
+                label="Command Center" 
                 active={currentPage === 'profile'} 
                 onClick={() => setCurrentPage('profile')}
               />
             )}
             <SidebarItem 
-              icon={isNightMode ? <Sun size={18} /> : <Moon size={18} />} 
-              label="Night Mode" 
+              icon={isNightMode ? <Sun size={20} /> : <Moon size={20} />} 
+              label="Ocular Comfort" 
               onClick={toggleNightMode}
               active={isNightMode}
             />
+            <div className="h-px bg-white/5 my-4 mx-4" />
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full p-[12px_32px] text-[15px] font-medium text-sidebar-item hover:text-white transition-colors"
+              className="flex items-center gap-4 w-full px-8 py-3.5 text-[14px] font-black uppercase tracking-widest text-sidebar-item hover:text-white hover:bg-white/5 transition-all rounded-xl"
             >
-              <LogOut size={18} /> Sign Out
+              <LogOut size={20} /> Terminate
             </button>
             {!isGuest && (
               <button 
                 onClick={lockApp}
-                className="flex items-center gap-3 w-full p-[12px_32px] text-[15px] font-medium text-sidebar-item hover:text-white transition-colors"
+                className="flex items-center gap-4 w-full px-8 py-3.5 text-[14px] font-black uppercase tracking-widest text-sidebar-item hover:text-white hover:bg-white/5 transition-all rounded-xl"
               >
-                <Lock size={18} /> Lock Session
+                <Lock size={20} /> Secure Node
               </button>
             )}
           </div>
@@ -536,62 +568,75 @@ export default function App() {
       {/* Main View */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-20 bg-white border-b border-border flex items-center justify-between px-10 shrink-0 z-20">
-          <div className="flex items-center gap-4 flex-1">
-            <button 
-              onClick={() => setIsDrawerOpen(true)}
-              className="lg:hidden p-2 -ml-2 text-txt2"
-            >
-              <Menu size={24} />
-            </button>
-            <div className="hidden md:flex items-center bg-panel2 rounded-lg px-4 py-2.5 w-[320px] text-txt2 gap-3">
-              <X size={18} className="opacity-0" /> {/* Spacer */}
-              <span className="text-[14px]">Search patients, records, or logs...</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-lg">
-              <Shield size={14} className="text-blue" />
-              <span className="text-[11px] font-black text-blue-700 uppercase tracking-tighter">RA 10173 Secure</span>
-            </div>
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-100 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[11px] font-bold text-green-700 uppercase tracking-tighter">Cloud Synced ✓</span>
-            </div>
-            <div className="relative">
-              <button className="p-2 text-txt2 hover:bg-panel2 rounded-full transition-colors">
-                <Bell size={20} />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red rounded-full border-2 border-white" />
-              </button>
-            </div>
-            <Clock />
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <div className="text-[14px] font-semibold text-txt leading-tight">{profile.name}</div>
-                <div className="text-[12px] text-txt2 leading-tight">{profile.role}</div>
-              </div>
+        <header className="h-[80px] flex items-center justify-between px-6 shrink-0 z-20 relative">
+          <div className="absolute inset-x-6 top-3 bottom-0 bg-white/70 backdrop-blur-xl border border-border/40 rounded-2xl shadow-sm flex items-center justify-between px-6">
+            <div className="flex items-center gap-4 flex-1">
               <button 
-                onClick={() => setCurrentPage('profile')}
-                className="w-9 h-9 rounded-full bg-border2 flex items-center justify-center text-[13px] font-bold text-txt overflow-hidden"
+                onClick={() => setIsDrawerOpen(true)}
+                className="lg:hidden w-10 h-10 flex items-center justify-center text-txt2 hover:bg-slate-50 rounded-xl transition-all"
               >
-                {profile.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                <Menu size={22} />
               </button>
+              <div className="hidden md:flex items-center bg-panel2 border border-border/30 rounded-xl px-4 py-2.5 w-[380px] text-txt3 gap-3 group focus-within:ring-4 focus-within:ring-blue/5 transition-all">
+                <Search size={18} className="group-focus-within:text-blue transition-colors opacity-40 group-focus-within:opacity-100" />
+                <input 
+                  type="text" 
+                  placeholder="Analyze telemetry, records..." 
+                  className="bg-transparent border-none outline-none w-full text-[14px] font-bold text-txt placeholder:text-txt3/40"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="hidden xl:flex items-center gap-3 group cursor-help">
+                <div className="flex flex-col items-end">
+                  <span className={cn("text-[9px] font-black uppercase tracking-widest leading-none transition-colors", syncColor)}>{globalSyncStatus}</span>
+                </div>
+                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center border transition-all", syncBg, syncColor, syncColor.replace('text-', 'border-').replace('text-red', 'border-red-m/20'))}>
+                  {syncIcon}
+                </div>
+              </div>
+              
+              <div className="h-8 w-px bg-slate-100 hidden md:block" />
+
+              <div className="flex items-center gap-4">
+                <button className="w-10 h-10 flex items-center justify-center text-txt2 hover:bg-slate-50 rounded-xl transition-all relative group">
+                  <Bell size={22} className="group-hover:scale-105 transition-transform" />
+                  <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red rounded-full border-2 border-white shadow-sm" />
+                </button>
+                
+                <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-border/40">
+                  <div className="text-right">
+                    <div className="text-[14px] font-black text-txt tracking-tighter leading-none uppercase italic">{profile.name}</div>
+                    <div className="text-[10px] font-black text-blue uppercase tracking-widest mt-1 opacity-60">Admin Node</div>
+                  </div>
+                  <button 
+                    onClick={() => isAllowed('profile') && setCurrentPage('profile')}
+                    className={cn(
+                      "w-11 h-11 rounded-xl bg-slate-900 shadow-xl shadow-slate-900/40 flex items-center justify-center text-[15px] font-black text-white hover:scale-105 transition-all active:scale-90 overflow-hidden border border-white/10",
+                      !isAllowed('profile') && "cursor-default hover:scale-100"
+                    )}
+                  >
+                    {profile.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-10">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentPage}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="max-w-6xl mx-auto"
-            >
+        <main className="flex-1 overflow-y-auto px-6 pb-6 mt-1 custom-scrollbar relative z-10">
+          <div className="min-h-full">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentPage}
+                initial={{ opacity: 0, y: 20, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.99 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="max-w-7xl mx-auto"
+              >
               {isResumeBarVisible && (
                 <div className="bg-amber-l border border-amber-m rounded-lg p-4 flex items-center gap-3 mb-8 shadow-sh">
                   <Pause size={20} className="text-amber" />
@@ -602,7 +647,7 @@ export default function App() {
                 </div>
               )}
 
-              {currentPage === 'dashboard' && <Dashboard queue={queue} patients={patients} appointments={appointments} addToast={addToast} refreshData={refreshData} currentRole={currentRole} />}
+              {currentPage === 'dashboard' && <Dashboard queue={queue} patients={patients} appointments={appointments} addToast={addToast} refreshData={refreshData} currentRole={currentRole} profile={profile} />}
               {currentPage === 'appointments' && <Appointments appointments={appointments} patients={patients} addToast={addToast} currentRole={currentRole} profile={profile} isGuest={isGuest} />}
               {currentPage === 'book' && <Appointments appointments={appointments} patients={patients} addToast={addToast} isBookingOnly isGuest={isGuest} />}
               {currentPage === 'patients' && <PatientRecords patients={patients} addToast={addToast} currentRole={currentRole} />}
@@ -624,7 +669,8 @@ export default function App() {
               {currentPage === 'profile' && <ProfilePage profile={profile} setProfile={updateProfile} addToast={addToast} onHardReset={handleHardReset} isAdmin={currentRole === 'admin'} />}
             </motion.div>
           </AnimatePresence>
-        </main>
+        </div>
+      </main>
       </div>
 
       {/* Mobile Drawer (Same as Sidebar but as a drawer) */}
@@ -830,8 +876,10 @@ function Clock() {
 function SidebarSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mb-4">
-      <div className="text-[11px] font-bold text-sidebar-item/50 uppercase tracking-[0.1em] px-8 py-3">{title}</div>
-      {children}
+      <div className="text-[9px] font-black text-sidebar-item/20 uppercase tracking-[0.2em] px-8 py-3">{title}</div>
+      <div className="px-2 space-y-0.5">
+        {children}
+      </div>
     </div>
   );
 }
@@ -848,16 +896,16 @@ function SidebarItem({ icon, label, active, onClick, badge, badgeColor }: {
     <button 
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 w-full p-[12px_32px] text-[15px] font-medium text-sidebar-item transition-all border-l-4 border-transparent active:bg-sidebar-active",
-        active && "bg-sidebar-active text-white border-accent"
+        "group flex items-center gap-3 w-full p-[10px_16px] text-[13px] font-bold text-sidebar-item transition-all rounded-xl hover:bg-white/5 hover:text-white active:scale-95",
+        active && "bg-white/10 text-white shadow-lg shadow-black/10"
       )}
     >
-      <span className={cn("shrink-0", active ? "text-accent" : "opacity-60")}>{icon}</span>
-      <span className="flex-1 text-left">{label}</span>
+      <span className={cn("shrink-0 transition-transform group-hover:scale-105", active ? "text-blue" : "opacity-30")}>{icon}</span>
+      <span className="flex-1 text-left tracking-tight">{label}</span>
       {badge !== undefined && badge > 0 && (
         <span className={cn(
-          "bg-accent text-sidebar text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[20px] text-center",
-          badgeColor === 'red' && "bg-red text-white"
+          "bg-blue text-white text-[9px] px-1.5 py-0.5 rounded-full font-black min-w-[18px] text-center shadow-md",
+          badgeColor === 'red' && "bg-red"
         )}>
           {badge}
         </span>

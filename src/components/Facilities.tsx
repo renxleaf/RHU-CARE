@@ -1,4 +1,4 @@
-import { Phone, MapPin, Clock, Info } from 'lucide-react';
+import { Phone, MapPin, Clock, Info, Activity, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Role } from '../types';
 
@@ -22,49 +22,86 @@ export default function Facilities({ currentRole }: FacilitiesProps) {
   const isPatient = currentRole === 'patient';
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col">
-        <h2 className="text-[18px] font-bold">Health Facilities</h2>
-        <p className="text-[13px] text-txt2">Referral network · Calauan Laguna · Barangay Health Stations</p>
+    <div className="flex flex-col gap-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col">
+          <h2 className="text-[28px] font-black tracking-tight text-txt uppercase">Health Facility Network</h2>
+          <p className="text-[14px] text-txt2 font-medium">Distributed Care Points · Calauan Laguna Referral Path</p>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {FACS.map((f, i) => (
-          <div key={i} className="bg-panel border border-border rounded-r-lg p-3.5 shadow-sh">
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0", f.av)}>
-                {f.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+          <div 
+            key={i} 
+            className="card flex flex-col justify-between group overflow-hidden relative"
+          >
+            {/* Top Bar for status */}
+            <div className={cn(
+              "absolute top-0 left-0 right-0 h-1",
+              f.hours === '24/7' ? "bg-green" : "bg-blue"
+            )} />
+
+            <div className="flex-1">
+              <div className="flex items-start justify-between mb-4">
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-[16px] font-black shrink-0 shadow-sm", f.av)}>
+                  {f.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                </div>
+                {f.hours === '24/7' && (
+                  <span className="flex items-center gap-1 text-[9px] font-black bg-green-l text-green px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                    <Activity size={10} /> Emergency Ready
+                  </span>
+                )}
               </div>
-              <div>
-                <div className="text-[14px] font-bold text-txt leading-tight">{f.name}</div>
-                <div className="text-[11px] text-txt2 leading-tight">{f.loc}</div>
+
+              <div className="mb-4">
+                <h3 className="text-[18px] font-black text-txt leading-tight group-hover:text-blue transition-colors">{f.name}</h3>
+                <div className="flex items-center gap-1.5 text-[12px] text-txt2 font-medium mt-1">
+                  <MapPin size={14} className="text-blue" />
+                  <span>{f.loc}</span>
+                </div>
               </div>
-            </div>
-            <span className="chip bg-blue-l border-blue-m text-blue text-[10px] mb-2">{f.type}</span>
-            <div className="flex flex-col gap-1.5 mt-2">
-              <div className="text-[12px] text-txt2 flex items-center gap-2">
-                <Clock size={12} className="shrink-0" /> <strong>Hours:</strong> {f.hours}
+
+              <div className="flex flex-col gap-3 my-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-txt2">
+                    <Clock size={16} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black text-txt3 uppercase tracking-widest">Operation Hours</div>
+                    <div className="text-[13px] font-bold text-txt">{f.hours}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-txt2">
+                    <Phone size={16} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black text-txt3 uppercase tracking-widest">Clinical Contact</div>
+                    <div className="text-[13px] font-bold text-txt">{f.contact}</div>
+                  </div>
+                </div>
               </div>
-              <div className="text-[12px] text-txt2 flex items-center gap-2">
-                <Phone size={12} className="shrink-0" /> <strong>Contact:</strong> {f.contact}
-              </div>
-              <div className="text-[12px] text-txt2 flex items-start gap-2">
-                <Info size={12} className="shrink-0 mt-0.5" /> 
-                <span><strong>Services:</strong> {f.services}</span>
+
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-4">
+                <div className="text-[10px] font-black text-txt3 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                  <ShieldCheck size={12} className="text-blue" /> Specialized Services
+                </div>
+                <p className="text-[12px] text-txt font-medium leading-relaxed">{f.services}</p>
               </div>
             </div>
             
-            {!isPatient && (
-              <div className="flex gap-2 mt-3.5">
-                <button className="btn btn-p btn-sm flex-1">Refer Patient</button>
-                <a 
-                  href={`tel:${f.contact.replace(/[^0-9]/g, '')}`} 
-                  className="btn btn-sm flex-1 flex items-center justify-center gap-2"
-                >
-                  <Phone size={14} /> Call
-                </a>
-              </div>
-            )}
+            <div className="flex gap-3 pt-4 border-t border-border/50">
+              <a 
+                href={`tel:${f.contact.replace(/[^0-9]/g, '')}`} 
+                className="btn btn-sm flex-1 flex items-center justify-center gap-2 hover:bg-blue hover:text-white transition-colors"
+              >
+                <Phone size={14} /> Call Hub
+              </a>
+              {!isPatient && (
+                <button className="btn btn-p btn-sm flex-1">Issue Referral</button>
+              )}
+            </div>
           </div>
         ))}
       </div>

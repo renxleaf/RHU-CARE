@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Home, Link, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Home, Link, Edit2, User, Clock, Heart } from 'lucide-react';
 import { Dependent } from '../types';
 import { cn, uid, pst, fmtShort } from '../lib/utils';
 import Modal from './Modal';
+import ConfirmModal from './ConfirmModal';
 
 interface DependentsProps {
   dependents: {
@@ -28,6 +29,17 @@ export default function Dependents({ dependents, addToast, currentRole }: Depend
 
   // Restricted Access
   const isPatient = currentRole === 'patient';
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   if (dependents.loading) {
     return (
@@ -100,67 +112,110 @@ export default function Dependents({ dependents, addToast, currentRole }: Depend
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Remove ${name}?`)) {
-      dependents.removeItem(id);
-      addToast(`${name} removed`, 'r');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Household Link',
+      message: `Are you sure you want to remove the household link for ${name}?`,
+      onConfirm: () => {
+        dependents.removeItem(id);
+        addToast(`${name} removed`, 'r');
+      }
+    });
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col">
-          <h2 className="text-[18px] font-bold">Household & Dependents</h2>
-          <p className="text-[13px] text-txt2">Family mapping · Household health tracking</p>
+          <h2 className="text-[28px] font-black tracking-tight text-txt uppercase italic">Household & Family Hub</h2>
+          <p className="text-[14px] text-txt2 font-medium">Kinship Mapping · Calauan Resident Demographic Loop</p>
         </div>
-        <button className="btn btn-p btn-sm" onClick={handleOpenAdd} disabled={isPatient}>
-          <Plus size={14} /> Add Dependent
-        </button>
+        {!isPatient && (
+          <button 
+            onClick={handleOpenAdd} 
+            className="px-6 py-3 bg-sidebar text-white rounded-xl font-bold hover:shadow-lg shadow-sidebar/20 transition-all flex items-center gap-2 active:scale-95"
+          >
+            <Plus size={20} /> Add Household Relation
+          </button>
+        )}
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {dependents.data.map(d => (
-          <div key={d.id} className="bg-panel border border-border rounded-lg p-3.5 shadow-sh flex flex-col gap-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Home size={14} className="text-accent" />
-                  <span className="text-[11px] font-bold text-txt2 uppercase tracking-wider">Household: {d.head}</span>
+          <div key={d.id} className="card group hover:shadow-2xl transition-all border-none bg-white p-6 relative flex flex-col justify-between">
+            <div>
+              <div className="flex items-start justify-between mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-txt3 border border-slate-100 group-hover:bg-blue-l group-hover:text-blue transition-colors">
+                  <Home size={24} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Link size={14} className="text-secondary" />
-                  <div className="text-[15px] font-bold text-txt leading-tight">{d.dependent}</div>
-                </div>
-                <div className="text-[11px] text-txt2 ml-5 mt-0.5">{d.relationship} · Age {d.age}</div>
+                <span className="chip px-3 py-1 bg-slate-100 border-slate-200 text-txt2 text-[9px] font-black uppercase">
+                  Relation Verified
+                </span>
               </div>
-              <span className="chip bg-blue-l/50 border-blue-m/30 text-blue-d text-[10px] font-bold shadow-sm">{d.conditions}</span>
+              
+              <div className="mb-6">
+                <h3 className="text-[18px] font-black text-txt tracking-tight group-hover:text-blue transition-colors leading-tight">
+                  {d.dependent}
+                </h3>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="text-[12px] font-bold text-blue uppercase tracking-tighter bg-blue-l/50 px-2 rounded">
+                    {d.relationship}
+                  </div>
+                  <div className="text-[12px] font-bold text-txt3 uppercase tracking-tighter italic">
+                    Age {d.age}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-txt3 group-hover:text-blue transition-colors">
+                    <User size={16} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black text-txt3 uppercase tracking-widest leading-none mb-1">Household Head</div>
+                    <div className="text-[13px] font-bold text-txt">{d.head}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-red-l/30 flex items-center justify-center text-red group-hover:bg-red group-hover:text-white transition-all">
+                    <Heart size={16} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black text-txt3 uppercase tracking-widest leading-none mb-1">Risk Factors</div>
+                    <div className="text-[13px] font-black text-red tracking-tight truncate">{d.conditions}</div>
+                  </div>
+                </div>
+              </div>
             </div>
             
-            <div className="flex items-center justify-between pt-2 border-t border-border/50">
-              <div className="text-[10px] text-txt3 font-medium">Last Visit: {d.lastVisit}</div>
-              <div className="flex items-center gap-1.5">
+            <div className="pt-4 border-t border-border/50 flex items-center justify-between">
+              <div className="text-[11px] font-bold text-txt3 flex items-center gap-1.5 grayscale group-hover:grayscale-0 transition-all uppercase tracking-tighter">
+                <Clock size={12} /> Seen: {d.lastVisit}
+              </div>
+              <div className="flex items-center gap-2">
                 <button 
-                  className="btn btn-sm px-2.5 py-1.5 bg-bg text-txt2 hover:text-blue hover:border-blue-m disabled:hidden" 
+                  className="p-2.5 text-txt3 hover:text-blue hover:bg-blue/5 rounded-xl border border-transparent hover:border-blue/10 transition-all shadow-sm" 
                   onClick={() => handleOpenEdit(d)}
                   disabled={isPatient}
                 >
-                  <Edit2 size={12} />
+                  <Edit2 size={18} />
                 </button>
                 <button 
-                  className="btn btn-sm btn-d px-2.5 py-1.5 disabled:hidden" 
+                  className="p-2.5 text-txt3 hover:text-red hover:bg-red/5 rounded-xl border border-transparent hover:border-red/10 transition-all" 
                   onClick={() => handleDelete(d.id, d.dependent)}
                   disabled={isPatient}
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={18} />
                 </button>
               </div>
             </div>
           </div>
         ))}
         {dependents.data.length === 0 && (
-          <div className="p-7 text-center text-txt2 text-[13px]">
-            <div className="text-[32px] mb-2">👨‍👩‍👧</div>
-            No dependents yet.
+          <div className="xl:col-span-3 p-20 text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl opacity-30">
+            <div className="text-[64px] mb-4">👨‍👩‍👧‍👦</div>
+            <p className="text-[18px] font-black uppercase tracking-widest">No kinship mappings detected</p>
           </div>
         )}
       </div>
@@ -168,42 +223,49 @@ export default function Dependents({ dependents, addToast, currentRole }: Depend
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title={editingId ? "Edit Household Link" : "Add Dependent"}
-        subtitle={editingId ? "Update family relation details" : "Link a family member to a household head"}
+        title={editingId ? "Modify Household Relation" : "New Household Link"}
         footer={
-          <>
-            <button className="btn flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</button>
-            <button className="btn btn-p flex-1" onClick={handleSave}>{editingId ? "Update ✓" : "Save ✓"}</button>
-          </>
+          <div className="flex gap-4 w-full">
+            <button className="flex-1 px-6 py-3 border border-border rounded-xl font-bold text-txt hover:bg-slate-50 transition-all" onClick={() => setIsAddModalOpen(false)}>Abort</button>
+            <button className="flex-1 px-6 py-3 bg-sidebar text-white rounded-xl font-bold hover:shadow-lg shadow-sidebar/20 active:scale-95 transition-all" onClick={handleSave}>{editingId ? "Update Registry ✓" : "Commit Link ✓"}</button>
+          </div>
         }
       >
-        <div className="flex flex-col gap-3.5">
+        <div className="flex flex-col gap-6 p-2">
           <div className="form-group">
-            <label className="form-label">Household head</label>
-            <input className="form-input" placeholder="Head of household name" value={head} onChange={e => setHead(e.target.value)} />
+            <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Household Principal Name</label>
+            <input className="form-input" placeholder="Primary head of household" value={head} onChange={e => setHead(e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">Dependent name</label>
-            <input className="form-input" placeholder="Dependent full name" value={dep} onChange={e => setDep(e.target.value)} />
+            <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Dependent Full Identity</label>
+            <input className="form-input" placeholder="Family member to link" value={dep} onChange={e => setDep(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-4">
             <div className="form-group">
-              <label className="form-label">Relationship</label>
+              <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Kinship Type</label>
               <select className="form-input" value={rel} onChange={e => setRel(e.target.value)}>
                 <option>Spouse</option><option>Child</option><option>Parent</option><option>Sibling</option><option>Grandchild</option><option>Fetus</option>
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Age</label>
+              <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Chronological Age</label>
               <input className="form-input" type="number" value={age} onChange={e => setAge(e.target.value)} inputMode="numeric" />
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">Known conditions</label>
-            <input className="form-input" placeholder="e.g., Asthma, None" value={cond} onChange={e => setCond(e.target.value)} />
+            <label className="text-[11px] font-black text-txt3 uppercase tracking-widest mb-2 block">Pre-existing Pathology</label>
+            <input className="form-input" placeholder="e.g., Asthma, Hypertension, Co-morbidities" value={cond} onChange={e => setCond(e.target.value)} />
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+      />
     </div>
   );
 }

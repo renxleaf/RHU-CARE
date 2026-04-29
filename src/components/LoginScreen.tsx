@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Globe, ShieldCheck, Fingerprint } from 'lucide-react';
 import { Role } from '../types';
 import { cn } from '../lib/utils';
@@ -38,19 +38,16 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         setTimeout(() => {
           const saved = localStorage.getItem('rhucare_pin') || '1234';
           if (newPin === saved) {
-            // If they use PIN, we still want them to be authed for cloud sync
-            // For this demo, if they are already authed via Firebase, onLogin works.
-            // If not, we prompt for Google.
             if (auth.currentUser) {
               onLogin(role);
             } else {
               setPin('');
-              setError('Please Sign in with Google first to enable Cloud Sync');
+              setError('Connect with Google first for Cloud Sync');
               setTimeout(() => setError(''), 3000);
             }
           } else {
             setPin('');
-            setError('Incorrect PIN');
+            setError('Incorrect Security PIN');
             setTimeout(() => setError(''), 2000);
           }
         }, 120);
@@ -59,90 +56,112 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-50 flex flex-col items-center justify-center p-6 z-10 overflow-y-auto">
+    <div className="fixed inset-0 bg-bg flex flex-col items-center justify-center p-8 z-10 overflow-y-auto">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.08),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.05),transparent_50%)] pointer-events-none" />
+      
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[420px] flex flex-col gap-6"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+        }}
+        className="w-full max-w-[440px] flex flex-col gap-8 relative z-10"
       >
         {/* Branding */}
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue rounded-2xl shadow-lg mb-4">
-            <ShieldCheck className="text-white" size={32} />
-          </div>
-          <h1 className="text-[32px] font-black text-slate-900 tracking-tight leading-none">RHUCARE</h1>
-          <p className="text-[14px] text-slate-500 mt-2 font-medium">Cloud EHR & Real-time Sync for Calauan, Laguna</p>
-        </div>
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          className="text-center"
+        >
+          <motion.div 
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            className="inline-flex items-center justify-center w-20 h-20 bg-blue rounded-[32px] shadow-2xl shadow-blue/20 mb-6 border-4 border-white"
+          >
+            <ShieldCheck className="text-white" size={40} />
+          </motion.div>
+          <h1 className="text-[42px] font-black text-slate-900 tracking-tighter leading-none italic uppercase">RHU<span className="text-blue">CARE</span></h1>
+          <p className="text-[15px] text-slate-500 mt-4 font-bold tracking-tight px-4 opacity-70">Healthcare that feels like family. Secure & Modern.</p>
+        </motion.div>
 
-        <div className="bg-white rounded-[24px] p-8 shadow-xl shadow-slate-200/50 border border-slate-100">
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, scale: 0.95 },
+            visible: { opacity: 1, scale: 1 }
+          }}
+          className="bg-white rounded-[48px] p-10 shadow-2xl shadow-slate-200/40 border-2 border-slate-50"
+        >
           {/* Role Selection */}
-          <div className="mb-8">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block text-center">Access Level</label>
-            <div className="flex justify-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              <RoleIcon active={role === 'nurse'} icon="👩‍⚕️" label="Nurse" onClick={() => setRole('nurse')} />
-              <RoleIcon active={role === 'doctor'} icon="👨‍⚕️" label="Doctor" onClick={() => setRole('doctor')} />
-              <RoleIcon active={role === 'bhw'} icon="🏘️" label="BHW" onClick={() => setRole('bhw')} />
-              <RoleIcon active={role === 'admin'} icon="🖥️" label="Admin" onClick={() => setRole('admin')} />
-              <RoleIcon active={role === 'patient'} icon="👤" label="Patient" onClick={() => setRole('patient')} />
-            </div>
+          <div className="mb-10">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6 block text-center">Identity Node</label>
+    <div className="flex justify-center gap-1.5 px-2">
+      <RoleIcon active={role === 'nurse'} icon="👩‍⚕️" label="Nurse" onClick={() => setRole('nurse')} />
+      <RoleIcon active={role === 'doctor'} icon="👨‍⚕️" label="Doctor" onClick={() => setRole('doctor')} />
+      <RoleIcon active={role === 'bhw'} icon="🏠" label="BHW" onClick={() => setRole('bhw')} />
+      <RoleIcon active={role === 'admin'} icon="🖥️" label="Admin" onClick={() => setRole('admin')} />
+      <RoleIcon active={role === 'patient'} icon="👤" label="Patient" onClick={() => setRole('patient')} />
+    </div>
           </div>
 
-          {error && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-red-50 border border-red-100 text-red-600 rounded-xl p-3 text-[13px] font-medium mb-6 text-center"
-            >
-              {error}
-            </motion.div>
-          )}
+          <AnimatePresence mode="wait">
+            {error && (
+              <motion.div 
+                key="error"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="bg-red-l border border-red-m text-red rounded-2xl p-4 text-[13px] font-bold mb-8 text-center"
+              >
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Primary Action: Google Login or Patient Portal */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             {role === 'patient' ? (
-              <div className="space-y-4">
+              <motion.div 
+                key="patient-form"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+              >
                 <div className="space-y-4">
                   <div className="form-group">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Patient Full Name</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Full Name</label>
                     <input 
                       type="text"
                       id="patient-name-input"
                       placeholder="e.g. Maria Dela Cruz"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-bold focus:ring-2 focus:ring-blue/20 focus:border-blue transition-all outline-none"
+                      className="w-full bg-bg border-2 border-border/40 rounded-2xl px-6 py-4 text-[15px] font-bold focus:ring-4 focus:ring-blue/10 focus:border-blue transition-all outline-none"
                     />
                   </div>
                   <div className="form-group">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Security PIN</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Personal PIN</label>
                     <input 
                       type="password"
                       id="patient-pin-input"
                       maxLength={4}
                       placeholder="••••"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[18px] font-bold tracking-[0.5em] focus:ring-2 focus:ring-blue/20 focus:border-blue transition-all outline-none text-center"
+                      className="w-full bg-bg border-2 border-border/40 rounded-2xl px-6 py-4 text-[24px] font-bold tracking-[0.8em] focus:ring-4 focus:ring-blue/10 focus:border-blue transition-all outline-none text-center"
                     />
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest w-full">Available Demo Patients</div>
-                  {[
-                    { name: 'Maria Dela Cruz', pin: '1234' },
-                    { name: 'Roberto Santos', pin: '5678' },
-                    { name: 'Elena Reyes', pin: '1122' },
-                    { name: 'Ricardo Gomez', pin: '3344' },
-                    { name: 'Aurelia Lim', pin: '5566' }
-                  ].map(p => (
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {['Dela Cruz, Ricardo P.', 'Santos, Maria Theresa L.', 'Villanueva, Clara M.'].map(name => (
                     <button 
-                      key={p.name}
+                      key={name}
                       onClick={() => {
                         const inputName = document.getElementById('patient-name-input') as HTMLInputElement;
+                        if (inputName) inputName.value = name;
                         const inputPin = document.getElementById('patient-pin-input') as HTMLInputElement;
-                        if (inputName) inputName.value = p.name;
-                        if (inputPin) inputPin.value = p.pin;
+                        if (inputPin) inputPin.value = '1234';
                       }}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-blue/10 hover:text-blue border border-slate-200 rounded-xl text-[10px] font-black transition-all"
+                      className="px-4 py-2 bg-slate-50 hover:bg-blue-l text-txt2 hover:text-blue border-2 border-border/20 rounded-full text-[11px] font-bold transition-all active:scale-95"
                     >
-                      {p.name}
+                      {name}
                     </button>
                   ))}
                 </div>
@@ -154,108 +173,109 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                     const name = inputName?.value || 'Guest Patient';
                     const pin = inputPin?.value || '';
 
-                    // Mock validation
                     const patients = [
-                      { name: 'Maria Dela Cruz', pin: '1234' },
-                      { name: 'Roberto Santos', pin: '5678' },
-                      { name: 'Elena Reyes', pin: '1122' },
-                      { name: 'Ricardo Gomez', pin: '3344' },
-                      { name: 'Aurelia Lim', pin: '5566' }
+                      { name: 'Dela Cruz, Ricardo P.', pin: '1234' },
+                      { name: 'Santos, Maria Theresa L.', pin: '5678' },
+                      { name: 'Villanueva, Clara M.', pin: '1122' }
                     ];
 
                     const found = patients.find(p => p.name === name);
                     if (found && found.pin !== pin) {
-                      const btn = document.activeElement as HTMLButtonElement;
-                      btn.innerText = "Invalid PIN!";
-                      btn.classList.add('bg-red', 'border-red-700');
-                      setTimeout(() => {
-                        btn.innerText = "Access My Records";
-                        btn.classList.remove('bg-red', 'border-red-700');
-                      }, 2000);
+                      setError("Invalid Security PIN");
+                      setTimeout(() => setError(""), 2000);
                       return;
                     }
 
                     localStorage.setItem('demo_patient_name', name);
                     onLogin('patient');
                   }}
-                  className="w-full bg-blue hover:bg-blue-600 text-white py-5 rounded-2xl font-black text-[16px] flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.98] shadow-xl shadow-blue/20 border-b-4 border-blue-700"
+                  className="w-full bg-blue text-white py-5 rounded-[24px] font-black text-[18px] flex flex-col items-center justify-center transition-all active:scale-95 shadow-2xl shadow-blue/20 uppercase tracking-tight italic"
                 >
                   <div className="flex items-center gap-3">
-                    <Globe size={22} className="text-white/80" />
-                    Access My Records
+                    <Globe size={24} className="opacity-80" />
+                    Enter My Clinic
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Digital Health Node</span>
                 </button>
-                <p className="text-[11px] text-slate-400 text-center font-medium px-4">
-                  Access your appointments, health records, and medical directory instantly.
-                </p>
-              </div>
+              </motion.div>
             ) : (
-              <button 
-                disabled={isLoading}
-                onClick={handleGoogleLogin}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-bold text-[15px] flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-slate-200"
+              <motion.div 
+                key="staff-form"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-8"
               >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Globe size={20} className="text-blue-400" />
-                )}
-                {isLoading ? 'Connecting...' : 'Sign in with Google Cloud'}
-              </button>
+                <button 
+                  disabled={isLoading}
+                  onClick={handleGoogleLogin}
+                  className="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-[16px] flex items-center justify-center gap-4 transition-all active:scale-95 disabled:opacity-70 shadow-2xl uppercase tracking-widest italic"
+                >
+                  {isLoading ? (
+                    <div className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Globe size={24} className="text-blue" />
+                  )}
+                  {isLoading ? 'Syncing...' : 'Secure Login'}
+                </button>
+
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t-2 border-slate-50"></div>
+                  <span className="flex-shrink mx-4 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Quick Entry</span>
+                  <div className="flex-grow border-t-2 border-slate-50"></div>
+                </div>
+
+                {/* PIN Grid */}
+                <div className="flex flex-col items-center">
+                  <div className="flex gap-4 mb-8">
+                    {[0, 1, 2, 3].map(i => (
+                      <div 
+                        key={i} 
+                        className={cn(
+                          "w-4 h-4 rounded-full border-2 transition-all duration-300",
+                          i < pin.length ? "bg-blue border-blue scale-125 shadow-glow" : "bg-slate-50 border-slate-100"
+                        )} 
+                      />
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 w-full max-w-[300px]">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map((n, i) => (
+                      <button 
+                        key={i} 
+                        onClick={() => n !== '' && handlePinPress(n)}
+                        className={cn(
+                          "h-16 rounded-[24px] text-[22px] font-black transition-all active:scale-90 flex items-center justify-center",
+                          n === '' ? "invisible" : 
+                          n === '⌫' ? "text-slate-300 hover:text-red transition-colors" : "bg-slate-50 hover:bg-panel2 text-slate-700 border-2 border-transparent hover:border-blue/10"
+                        )}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
             )}
-
-            <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-slate-100"></div>
-              <span className="flex-shrink mx-4 text-[11px] font-bold text-slate-300 uppercase tracking-widest">
-                {role === 'patient' ? 'Staff & Admin Only' : 'or quick access'}
-              </span>
-              <div className="flex-grow border-t border-slate-100"></div>
-            </div>
-
-            {/* Quick Access: PIN (Hidden for patients if they just want to enter) */}
-            <div className={cn("flex flex-col items-center", role === 'patient' && "opacity-40 pointer-events-none grayscale")}>
-              <div className="flex gap-4 mb-6">
-                {[0, 1, 2, 3].map(i => (
-                  <div 
-                    key={i} 
-                    className={cn(
-                      "w-3 h-3 rounded-full border-2 transition-all duration-300",
-                      i < pin.length ? "bg-blue border-blue scale-125 shadow-sm shadow-blue/50" : "bg-slate-100 border-slate-200"
-                    )} 
-                  />
-                ))}
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map((n, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => n !== '' && handlePinPress(n)}
-                    className={cn(
-                      "h-14 rounded-xl text-[20px] font-bold transition-all active:scale-90 flex items-center justify-center",
-                      n === '' ? "invisible" : 
-                      n === '⌫' ? "text-slate-400 hover:text-red-500" : "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100"
-                    )}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Footer Info */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            <Fingerprint size={14} className="text-green-500" />
-            RA 10173 Secure · Calauan Laguna
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0 },
+            visible: { opacity: 1 }
+          }}
+          className="flex flex-col items-center gap-4 py-4"
+        >
+          <div className="flex items-center gap-3 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
+            <Fingerprint size={16} className="text-green" />
+            Node-to-Cloud Encryption Active
           </div>
-          <p className="text-[10px] text-slate-400 text-center max-w-[280px]">
-            By signing in, you agree to the clinical data processing protocols of the Rural Health Unit.
+          <p className="text-[11px] text-slate-400 text-center font-medium opacity-60 leading-relaxed px-10">
+            Rural Health Unit · Calauan, Laguna
+            <br />
+            Station 0{Math.floor(Math.random() * 5) + 1}-A · v4.0.1
           </p>
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   );
@@ -266,12 +286,12 @@ function RoleIcon({ active, icon, label, onClick }: { active: boolean; icon: str
     <button 
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center gap-1 min-w-[70px] p-2 rounded-2xl transition-all",
-        active ? "bg-blue-50 scale-110" : "opacity-50 hover:opacity-100"
+        "flex flex-col items-center gap-2 flex-1 p-4 rounded-[28px] transition-all border-2",
+        active ? "bg-blue-l/50 border-blue-m/30 scale-105 shadow-sh" : "border-transparent opacity-40 hover:opacity-100"
       )}
     >
-      <div className="text-[24px]">{icon}</div>
-      <span className={cn("text-[10px] font-bold uppercase tracking-tighter", active ? "text-blue" : "text-slate-500")}>
+      <div className="text-[32px]">{icon}</div>
+      <span className={cn("text-[11px] font-black uppercase tracking-tighter", active ? "text-blue" : "text-slate-500")}>
         {label}
       </span>
     </button>

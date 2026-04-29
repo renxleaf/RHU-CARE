@@ -1,0 +1,6 @@
+{
+  "appId": "com.rhucare.app",
+  "appName": "RHU-CARE",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

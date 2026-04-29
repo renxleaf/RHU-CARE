@@ -16,36 +16,43 @@ export default function Modal({ isOpen, onClose, title, subtitle, children, foot
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 lg:p-10">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
           />
           <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative w-full max-w-lg bg-panel rounded-t-xl sm:rounded-xl shadow-sh-md overflow-hidden flex flex-col max-h-[90vh]"
+            className="relative w-full max-w-xl bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-border/20"
           >
-            <div className="p-5 overflow-y-auto flex-1">
-              <div className="w-9 h-1 bg-border2 rounded-full mx-auto mb-4 sm:hidden" />
-              <div className="flex items-start justify-between mb-4">
+            {/* Header */}
+            <div className="px-8 pt-8 pb-4 shrink-0 relative bg-gradient-to-br from-blue/5 via-transparent to-transparent">
+              <div className="flex items-start justify-between relative z-10">
                 <div>
-                  <h2 className="text-[17px] font-bold text-txt">{title}</h2>
-                  {subtitle && <p className="text-[13px] text-txt2">{subtitle}</p>}
+                  <h2 className="text-[24px] font-black text-txt tracking-tighter uppercase italic">{title}</h2>
+                  {subtitle && <p className="text-[12px] text-txt2 font-bold mt-1 opacity-60 uppercase tracking-widest">{subtitle}</p>}
                 </div>
-                <button onClick={onClose} className="p-1 rounded-full hover:bg-bg sm:block hidden">
-                  <X size={20} className="text-txt2" />
+                <button 
+                  onClick={onClose} 
+                  className="w-10 h-10 rounded-xl bg-panel2 hover:bg-red-l hover:text-red transition-all flex items-center justify-center active:scale-90"
+                >
+                  <X size={20} />
                 </button>
               </div>
+            </div>
+
+            <div className="px-8 pb-8 overflow-y-auto flex-1 custom-scrollbar">
               {children}
             </div>
+
             {footer && (
-              <div className="p-5 pt-3 border-t border-border bg-panel shrink-0 flex gap-2">
+              <div className="px-8 py-5 bg-slate-50 border-t border-border/20 shrink-0 flex gap-3">
                 {footer}
               </div>
             )}

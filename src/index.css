@@ -1,105 +1,136 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
 
   --color-bg: #F8FAFC;
   --color-panel: #FFFFFF;
   --color-panel2: #F1F5F9;
   --color-border: #E2E8F0;
   --color-border2: #CBD5E1;
-  --color-txt: #1E293B;
-  --color-txt2: #64748B;
+  --color-txt: #0F172A;
+  --color-txt2: #475569;
   --color-txt3: #94A3B8;
   --color-sidebar: #0F172A;
   --color-sidebar-item: #94A3B8;
   --color-sidebar-active: #1E293B;
-  --color-accent: #38BDF8;
+  --color-accent: #0EA5E9;
   
-  --color-blue: #38BDF8;
-  --color-blue-l: #E0F2FE;
-  --color-blue-m: #7DD3FC;
+  --color-blue: #0EA5E9;
+  --color-blue-l: #F0F9FF;
+  --color-blue-m: #E0F2FE;
   --color-blue-d: #0369A1;
   
-  --color-green: #166534;
-  --color-green-l: #DCFCE7;
-  --color-green-m: #4ADE80;
+  --color-green: #10B981;
+  --color-green-l: #ECFDF5;
+  --color-green-m: #A7F3D0;
   
-  --color-red: #991B1B;
-  --color-red-l: #FEE2E2;
-  --color-red-m: #F87171;
+  --color-red: #EF4444;
+  --color-red-l: #FEF2F2;
+  --color-red-m: #FECACA;
   
-  --color-amber: #854D0E;
-  --color-amber-l: #FEF9C3;
-  --color-amber-m: #FACC15;
+  --color-amber: #F59E0B;
+  --color-amber-l: #FFFBEB;
+  --color-amber-m: #FEF3C7;
   
-  --color-teal: #0F766E;
-  --color-teal-l: #CCFBF1;
-  --color-teal-m: #2DD4BF;
+  --color-teal: #0D9488;
+  --color-teal-l: #F0FDFA;
+  --color-teal-m: #CCFBF1;
   
-  --color-purple: #6B21A8;
-  --color-purple-l: #F3E8FF;
-  --color-purple-m: #A855F7;
+  --color-purple: #8B5CF6;
+  --color-purple-l: #F5F3FF;
+  --color-purple-m: #DDD6FE;
 
-  --radius-r: 8px;
-  --radius-r-lg: 12px;
-  --radius-r-xl: 16px;
+  --radius-r: 12px;
+  --radius-r-lg: 16px;
+  --radius-r-xl: 24px;
+  --radius-r-2xl: 32px;
 
-  --shadow-sh: 0 1px 3px rgba(0,0,0,0.05);
-  --shadow-sh-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-sh: 0 2px 10px rgba(0,0,0,0.01), 0 1px 2px rgba(0,0,0,0.01);
+  --shadow-sh-md: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 4px 10px -3px rgba(0, 0, 0, 0.02);
+  --shadow-glow: 0 0 15px rgba(14, 165, 233, 0.1);
+  --shadow-soft: 0 10px 30px -8px rgba(0,0,0,0.04);
+}
+
+.night-mode {
+  --color-bg: #111827;
+  --color-panel: #1F2937;
+  --color-panel2: #111827;
+  --color-border: #374151;
+  --color-txt: #F3F4F6;
+  --color-txt2: #9CA3AF;
+  --color-txt3: #4B5563;
+  --color-sidebar: #030712;
+  
+  --color-blue-l: rgba(56, 189, 248, 0.1);
+  --color-green-l: rgba(22, 101, 52, 0.1);
+  --color-red-l: rgba(153, 27, 27, 0.1);
+  --color-amber-l: rgba(133, 77, 14, 0.1);
 }
 
 @layer base {
   body {
-    @apply bg-bg text-txt font-sans text-sm leading-relaxed;
+    @apply bg-bg text-txt font-sans text-sm antialiased transition-colors duration-300;
     touch-action: manipulation;
   }
 }
 
 @layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 font-semibold transition-all active:scale-95 disabled:opacity-50;
-    border-radius: var(--radius-r);
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2 font-bold transition-all active:scale-95 disabled:opacity-50 tracking-tight cursor-pointer;
+    border-radius: 12px;
     border: 1.5px solid var(--color-border);
     background: var(--color-panel);
     font-size: 13px;
+    box-shadow: var(--shadow-sh);
   }
 
   .btn-p {
-    @apply bg-sidebar text-white border-sidebar active:bg-txt;
+    @apply bg-blue text-white border-blue hover:bg-blue-d hover:border-blue-d hover:shadow-lg hover:shadow-blue/15 active:bg-blue-d;
   }
 
   .btn-s {
-    @apply bg-green-l text-green border-green-m;
+    @apply bg-green text-white border-green hover:bg-green-l hover:text-green hover:shadow-lg hover:shadow-green/5;
   }
 
   .btn-d {
-    @apply bg-red-l text-red border-red-m;
+    @apply bg-red-l text-red border-red-l hover:bg-red hover:text-white hover:border-red;
   }
 
-  .btn-w {
-    @apply bg-amber-l text-amber border-amber-m;
+  .btn-sm {
+    @apply px-4 py-1.5 text-[11px];
   }
 
   .card {
-    @apply bg-panel border border-border shadow-sh mb-6;
+    @apply bg-panel border border-border shadow-sh mb-6 transition-all hover:shadow-sh-md active:scale-[0.995];
     border-radius: var(--radius-r-lg);
-    padding: 24px;
+    padding: 20px;
   }
 
   .form-input {
-    @apply w-full px-4 py-2.5 bg-panel2 border border-border outline-none transition-colors focus:border-accent placeholder:text-txt3;
+    @apply w-full px-4 py-3 bg-panel2 border border-border outline-none transition-all focus:border-blue/50 focus:bg-white focus:ring-4 focus:ring-blue/5 placeholder:text-txt3 font-semibold;
     border-radius: var(--radius-r);
     font-size: 14px;
   }
 
   .chip {
-    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border whitespace-nowrap;
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border whitespace-nowrap;
   }
 }
 
 @layer utilities {
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
   @media print {
     aside, header, button, .no-print {
       display: none !important;

@@ -16,76 +16,78 @@ export default function MyRecords({ patient, appointments }: MyRecordsProps) {
 
   // Mock library of patient data for the portal demo
   const PATIENT_DATABASE: Record<string, any> = {
-    'Maria Dela Cruz': {
-      name: 'Maria Dela Cruz',
-      age: '28',
-      sex: 'Female',
-      dob: '1998-05-12',
-      philhealth: '12-345678901-2',
-      condition: 'Normal Pregnancy (24 Weeks)',
-      bloodType: 'O+',
-      weight: '58 kg',
-      height: '162 cm',
-      visits: [
-        { date: '2026-04-20', type: 'Prenatal Checkup', provider: 'Dr. Felipe', facility: 'Calauan RHU', bp: '110/70', weight: '58kg', diagnosis: 'Normal Pregnancy (24 Weeks)', plan: 'Continue multi-vitamins. Monitor fetal movement. Return in 4 weeks.' },
-        { date: '2026-03-22', type: 'Routine Follow-up', provider: 'Nurse Reyes', facility: 'Calauan RHU', bp: '120/80', weight: '57kg', diagnosis: 'Mild Fatigue', plan: 'Increase iron-rich food intake. Adequate rest recommended.' }
-      ],
-      labs: [
-        { name: 'Lipid Profile', date: '2026-03-22', result: 'Normal', status: 'Final' }
-      ],
-      medications: [
-        { name: 'Folic Acid', dosage: '5mg', frequency: 'Once Daily', duration: 'Throughout Pregnancy', status: 'Active' }
-      ]
-    },
-    'Roberto Santos': {
-      name: 'Roberto Santos',
-      age: '54',
+    'Dela Cruz, Ricardo P.': {
+      name: 'Dela Cruz, Ricardo P.',
+      age: '58',
       sex: 'Male',
-      dob: '1972-02-10',
-      philhealth: '12-987654321-0',
-      condition: 'Hypertension',
-      bloodType: 'A-',
-      weight: '72 kg',
-      height: '170 cm',
+      dob: '1968-04-12',
+      philhealth: '12-004567890-1',
+      condition: 'Hypertension Stage 2',
+      bloodType: 'O+',
+      weight: '78 kg',
+      height: '172 cm',
       visits: [
-        { date: '2026-04-18', type: 'Cardiology Consult', provider: 'Dr. Lopez', facility: 'Calauan RHU', bp: '140/90', weight: '72kg', diagnosis: 'Essential Hypertension', plan: 'Adjust dosage of Amlodipine. Low salt diet.' },
-        { date: '2026-02-10', type: 'Initial Screening', provider: 'Nurse Reyes', facility: 'Calauan RHU', bp: '160/100', weight: '74kg', diagnosis: 'New Onset Hypertension', plan: 'Start Maintenance meds. Monitor BP daily.' }
+        { date: '2026-04-20', type: 'Cardiology Follow-up', provider: 'Dr. Felipe', facility: 'Calauan RHU', bp: '160/100', weight: '78kg', diagnosis: 'Stage 2 Hypertension (Uncontrolled)', plan: 'Shift to Amlodipine + Losartan. Low sodium diet. Follow-up in 2 weeks.' },
+        { date: '2026-03-12', type: 'Routine Screening', provider: 'Nurse Reyes', facility: 'Calauan RHU', bp: '145/95', weight: '79kg', diagnosis: 'Pre-hypertension monitoring', plan: 'Increased physical activity. BP monitoring at home.' }
       ],
       labs: [
-        { name: 'ECG', date: '2026-04-18', result: 'Sinus Rhythm', status: 'Final' }
+        { name: 'Lipid Profile', date: '2026-03-22', result: 'High LDL', status: 'Final' }
       ],
       medications: [
-        { name: 'Amlodipine', dosage: '10mg', frequency: 'Once Daily', duration: 'Maintenance', status: 'Active' }
+        { name: 'Losartan', dosage: '50mg', frequency: 'Once Daily', duration: 'Maintenance', status: 'Active' },
+        { name: 'Amlodipine', dosage: '5mg', frequency: 'Once Daily', duration: 'Maintenance', status: 'Active' }
       ]
     },
-    'Elena Reyes': {
-      name: 'Elena Reyes',
-      age: '32',
+    'Santos, Maria Theresa L.': {
+      name: 'Santos, Maria Theresa L.',
+      age: '42',
       sex: 'Female',
-      dob: '1994-08-20',
-      philhealth: '12-445566778-9',
-      condition: 'Gestational Diabetes',
+      dob: '1984-08-22',
+      philhealth: '01-234567890-3',
+      condition: 'Diabetes Mellitus Type 2',
+      bloodType: 'A+',
+      weight: '68 kg',
+      height: '158 cm',
+      visits: [
+        { date: '2026-04-18', type: 'Endocrine Consult', provider: 'Dr. Lopez', facility: 'Calauan RHU', bp: '130/80', weight: '68kg', diagnosis: 'Type 2 Diabetes (Poor Glycemic Control)', plan: 'Metformin 500mg BID. Nutritional counseling. Monitor CBG daily.' }
+      ],
+      labs: [
+        { name: 'HbA1c', date: '2026-04-18', result: '8.5%', status: 'Final' }
+      ],
+      medications: [
+        { name: 'Metformin', dosage: '500mg', frequency: 'Twice Daily', duration: 'Maintenance', status: 'Active' }
+      ]
+    },
+    'Villanueva, Clara M.': {
+      name: 'Villanueva, Clara M.',
+      age: '34',
+      sex: 'Female',
+      dob: '1992-05-18',
+      philhealth: '56-789012345-7',
+      condition: 'G2P1 32w AOG',
       bloodType: 'B+',
       weight: '64 kg',
       height: '158 cm',
       visits: [
-        { date: '2026-04-12', type: 'Endocrine Consult', provider: 'Dr. Felipe', facility: 'Calauan RHU', bp: '115/75', weight: '64kg', diagnosis: 'Gestational Diabetes Control', plan: 'Monitor blood glucose daily. Follow strict low-carb meal plan.' }
+        { date: '2026-04-12', type: 'Prenatal Checkup', provider: 'Dr. Felipe', facility: 'Calauan RHU', bp: '135/85', weight: '64kg', diagnosis: 'Pregnancy 32 weeks, PIH monitoring', plan: 'Strict bed rest. Monitor BP BID. Watch for warning signs (headache, blur vision).' }
       ],
       labs: [],
-      medications: []
+      medications: [
+        { name: 'Methyldopa', dosage: '250mg', frequency: 'TID', duration: 'Until delivery', status: 'Active' }
+      ]
     },
-    'Ricardo Gomez': {
-      name: 'Ricardo Gomez',
-      age: '7',
+    'Garcia, Mateo S.': {
+      name: 'Garcia, Mateo S.',
+      age: '8',
       sex: 'Male',
-      dob: '2019-11-05',
-      philhealth: '12-112233445-6',
-      condition: 'Healthy',
-      bloodType: 'AB+',
-      weight: '22 kg',
-      height: '120 cm',
+      dob: '2018-02-14',
+      philhealth: '23-456789012-4',
+      condition: 'Bronchial Asthma',
+      bloodType: 'O+',
+      weight: '24 kg',
+      height: '125 cm',
       visits: [
-        { date: '2026-04-05', type: 'Pediatric Wellness', provider: 'Nurse Reyes', facility: 'Calauan RHU', bp: '90/60', weight: '22kg', diagnosis: 'Healthy Child', plan: 'Complete MMR vaccine series. Nutritional education provided to parents.' }
+        { date: '2026-04-05', type: 'Pediatric Acute Care', provider: 'Nurse Reyes', facility: 'Calauan RHU', bp: '95/60', weight: '24kg', diagnosis: 'Asthma in acute exacerbation', plan: 'Nebulization with Salbutamol. Prescribed Oral Steroids for 5 days.' }
       ],
       labs: [],
       medications: []

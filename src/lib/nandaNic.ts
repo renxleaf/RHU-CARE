@@ -6,13 +6,17 @@ export interface ClinicalProfile {
   explanation: string;
   nic: string[];
   noc: string[];
+  icdCode?: string;
+  icdTitle?: string;
   labOrders?: string[];
   education?: string[];
 }
 
 export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
   hypertension: {
-    diagnosis: "BA41.1 (Essential Hypertension) — NANDA-I 00204 (Ineffective Health Management)",
+    diagnosis: "NANDA-I 00204 (Ineffective Health Management)",
+    icdCode: "BA41.1",
+    icdTitle: "Essential Hypertension",
     explanation: "Based on BP > 140/90 or documented history. Risk for cardiovascular complications detected.",
     nic: [
       "NIC 4040 (Cardiac Care): Monitor Blood Pressure every 4 hours",
@@ -27,7 +31,9 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
     labOrders: ["Lipid Profile", "Serum Creatinine", "ECG (12-Lead)", "Chest X-ray"]
   },
   diabetes: {
-    diagnosis: "5A11 (Type 2 Diabetes Mellitus) — NANDA-I 00179 (Risk for Unstable Blood Glucose Level)",
+    diagnosis: "NANDA-I 00179 (Risk for Unstable Blood Glucose Level)",
+    icdCode: "5A11",
+    icdTitle: "Type 2 Diabetes Mellitus",
     explanation: "Based on abnormal CBG readings or glycemic history. Requires strict glucose monitoring and education.",
     nic: [
       "NIC 2120 (Hyperglycemia Management): Monitor CBG levels pre-/post-prandial",
@@ -41,8 +47,29 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
     ],
     labOrders: ["HbA1c", "Chem 7", "Microalbuminuria (Urine)", "Foot Sensitivity Test"]
   },
+  bleeding: {
+    diagnosis: "NANDA-I 00206 (Risk for Bleeding) / 00027 (Deficient Fluid Volume)",
+    icdCode: "GA20.0",
+    icdTitle: "Heavy Menstrual Bleeding",
+    explanation: "Excessive uterine blood loss. Characterized by saturating >1 pad/hour. Immediate hemodynamic monitoring required.",
+    nic: [
+      "NIC 4022 (Bleeding Reduction: Uterus): Monitor amount and character of blood loss (pad count)",
+      "NIC 4120 (Fluid Management): Start IV access (0.9% NaCl or LR) if hypotensive",
+      "NIC 6680 (Vital Signs Monitoring): Check BP/HR every 15 mins (Orthostatic assessment)",
+      "NIC 2300 (Medication Administration): Prepare for Tranexamic Acid administration",
+      "NIC 7910 (Laboratory Data Interpretation): Monitor Hgb/Hct and Coagulation profile"
+    ],
+    noc: [
+      "NOC 0413 (Blood Loss Severity): Minimal or controlled active bleeding",
+      "NOC 0601 (Fluid Balance): BP/Pulse within stable range; moist mucosa",
+      "NOC 1902 (Risk Control): Patient avoids Aspirin/Anticoagulants"
+    ],
+    labOrders: ["CBC with Platelet & Retic count", "PT/PTT/INR", "Transvaginal Ultrasound (TVU)", "Serum Ferritin"]
+  },
   bronchitis: {
-    diagnosis: "CA41 (Acute Bronchitis) — NANDA-I 00031 (Ineffective Airway Clearance)",
+    diagnosis: "NANDA-I 00031 (Ineffective Airway Clearance)",
+    icdCode: "CA41",
+    icdTitle: "Acute Bronchitis",
     explanation: "Observed respiratory distress or acute cough with secretions. Intervention focused on airway patency.",
     nic: [
       "NIC 3140 (Airway Management): Instruct in 'huff coughing' technique",
@@ -56,8 +83,25 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
     ],
     labOrders: ["Sputum Culture", "Chest X-ray (PA)", "CBC with Differential"]
   },
+  wellness: {
+    diagnosis: "NANDA-I 00262 (Health Self-Management)",
+    icdCode: "Z00.0",
+    icdTitle: "General Adult Medical Examination",
+    explanation: "General wellness check. Encouraging preventive monitoring and health-seeking behavior.",
+    nic: [
+      "NIC 5510 (Health Education): General wellness and preventive care",
+      "NIC 6610 (Risk Identification): Update family medical history",
+      "NIC 5440 (Support System Enhancement): Identify community health resources"
+    ],
+    noc: [
+      "NOC 1606 (Health Compliance Behavior): Adhere to follow-up schedule",
+      "NOC 1805 (Knowledge: Health Resources): Patient knows RHU schedule"
+    ]
+  },
   uti: {
-    diagnosis: "GB51.0 (Acute Cystitis) — NANDA-I 00016 (Impaired Urinary Elimination)",
+    diagnosis: "NANDA-I 00016 (Impaired Urinary Elimination)",
+    icdCode: "GB51.0",
+    icdTitle: "Acute Cystitis",
     explanation: "Reported dysuria or urinary frequency. Protocol targets infection clearance and hydration.",
     nic: [
       "NIC 0590 (Urinary Elimination Management): Increase fluid intake to 2.5L/day",
@@ -72,7 +116,9 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
     labOrders: ["Urinalysis", "Urine Culture", "KUB Ultrasound (if recurrent)"]
   },
   prenatal: {
-    diagnosis: "QA00 (Maternal Care for Known or Suspected Malpresentation) — NANDA-I 00208 (Readiness for Enhanced Childbearing Process)",
+    diagnosis: "NANDA-I 00208 (Readiness for Enhanced Childbearing Process)",
+    icdCode: "QA00",
+    icdTitle: "Maternal Care for Malpresentation",
     explanation: "Active pregnancy tracking. Goal is to optimize maternal-fetal outcome and screen for pre-eclampsia.",
     nic: [
       "NIC 6710 (Prenatal Care): Track Fundal Height and Fetal Heart Tone (FHT)",
@@ -87,7 +133,9 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
     labOrders: ["OGTT (75g)", "HBsAg", "CBC", "Urine Protein (Dipstick)"]
   },
   asthma: {
-    diagnosis: "CA41.2 (Asthma) — NANDA-I 00004 (Impaired Gas Exchange)",
+    diagnosis: "NANDA-I 00004 (Impaired Gas Exchange)",
+    icdCode: "CA41.2",
+    icdTitle: "Asthma",
     explanation: "Chronic respiratory patterns with risk of exacerbation. Monitoring SpO2 and inhaler technique is critical.",
     nic: [
       "NIC 3320 (Oxygen Therapy): Maintain SpO2 > 94% during exacerbation",
@@ -102,7 +150,9 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
     labOrders: ["Peak Flow Meter reading", "Chest X-ray", "Pulse Oximetry"]
   },
   dengue: {
-    diagnosis: "1D2Z (Dengue, unspecified) — NANDA-I 00007 (Hyperthermia)",
+    diagnosis: "NANDA-I 00007 (Hyperthermia)",
+    icdCode: "1D2Z",
+    icdTitle: "Dengue, Unspecified",
     explanation: "Fever + endemic risk. Focus on fluid resuscitation and avoiding high-risk medications (NSAIDs).",
     nic: [
       "NIC 1380 (Hyperthermia Treatment): Administer tepid sponge bath (TSB)",
@@ -117,7 +167,9 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
     labOrders: ["CBC (Platelet/Hct)", "Dengue NS1/IgG/IgM Rapid Test"]
   },
   tb: {
-    diagnosis: "1B10.0 (Tuberculosis of lung) — NANDA-I 00004 (Impaired Gas Exchange)",
+    diagnosis: "NANDA-I 00004 (Impaired Gas Exchange)",
+    icdCode: "1B10.0",
+    icdTitle: "Tuberculosis of Lung",
     explanation: "Persistent cough >2 weeks. Requires GeneXpert verification and strict DOTS adherence.",
     nic: [
       "NIC 3250 (Cough Enhancement): Sputum collection for GeneXpert",
@@ -132,7 +184,9 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
     labOrders: ["GeneXpert (Sputum)", "Chest X-ray (Apical View)", "Sputum Smear (AFB)"]
   },
   skin: {
-    diagnosis: "EL3Z (Dermatitis, unspecified) — NANDA-I 00046 (Impaired Skin Integrity)",
+    diagnosis: "NANDA-I 00046 (Impaired Skin Integrity)",
+    icdCode: "EL3Z",
+    icdTitle: "Dermatitis, Unspecified",
     explanation: "Localized skin irritation or inflammation. Focused on infection prevention and symptomatic relief.",
     nic: [
       "NIC 3590 (Skin Care: Topical): Application of prescribed hydrocortisone/calamine",
@@ -145,42 +199,84 @@ export const CLINICAL_MAP: Record<string, ClinicalProfile> = {
       "NOC 1902 (Risk Control): Patient avoids scratching"
     ],
     labOrders: ["Skin Scraping (if fungal suspected)", "Wound Culture"]
+  },
+  pneumonia: {
+    diagnosis: "NANDA-I 00032 (Ineffective Breathing Pattern)",
+    icdCode: "CA40",
+    icdTitle: "Pneumonia",
+    explanation: "Crackles on auscultation, dyspnea, and productive cough. Priority: Gas exchange and hydration.",
+    nic: [
+      "NIC 3141 (Airway Management): High-Fowler position to maximize chest expansion",
+      "NIC 3320 (Oxygen Therapy): Administer via nasal cannula if SpO2 < 92%",
+      "NIC 3250 (Cough Enhancement): Postural drainage and percussion",
+      "NIC 4120 (Fluid Management): Hydration to liquefy secretions (2.5L-3L)"
+    ],
+    noc: [
+      "NOC 0403 (Respiratory Status: Ventilation): Normal RR (14-20)",
+      "NOC 0402 (Respiratory Status: Gas Exchange): SpO2 > 95% on room air"
+    ],
+    labOrders: ["Chest X-ray (PA/Lateral)", "Sputum Gram Stain", "CBC with Diff"]
+  },
+  gastroenteritis: {
+    diagnosis: "NANDA-I 00027 (Deficient Fluid Volume)",
+    icdCode: "1A0Z",
+    icdTitle: "Infectious Gastroenteritis",
+    explanation: "Diarrhea/Vomiting leading to electrolyte imbalance. Critical focus on ORS and skin turgor.",
+    nic: [
+      "NIC 4120 (Fluid Management): Oral Rehydration Salt (ORS) monitoring",
+      "NIC 4180 (Hypovolemia Management): Evaluate capillary refill time",
+      "NIC 1100 (Nutrition Management): BRAT diet (Bananas, Rice, Applesauce, Toast)",
+      "NIC 4500 (Fluid/Electrolyte Management): Monitoring for signs of 'sunken eyeballs' in pediatrics"
+    ],
+    noc: [
+      "NOC 0601 (Fluid Balance): Moist mucous membranes",
+      "NOC 0602 (Hydration): Balanced Intake/Output"
+    ],
+    labOrders: ["Stool Exam (Routine)", "Serum Potassium", "Sodium Level"]
+  },
+  arthritis: {
+    diagnosis: "NANDA-I 00132 (Acute Pain)",
+    icdCode: "FA0Z",
+    icdTitle: "Arthritis, Unspecified",
+    explanation: "Joint pain and stiffness. Management targets pain reduction and mobility preservation.",
+    nic: [
+      "NIC 1400 (Pain Management): Use visual analogue scale (VAS)",
+      "NIC 1340 (Hot/Cold Application): Apply warm compress to stiff joints",
+      "NIC 0180 (Energy Management): Alternate activity with rest periods",
+      "NIC 5612 (Teaching: Prescribed Exercise): Range of motion (ROM) techniques"
+    ],
+    noc: [
+      "NOC 1605 (Pain Control): Patient reports pain level < 3/10",
+      "NOC 0208 (Mobility): Joint flexibility maintained"
+    ],
+    labOrders: ["Uric Acid (Serum)", "Rheumatoid Factor", "X-ray of affected joint"]
   }
 };
 
-export function getNandaNic(concern: string, bp?: string, cbg?: string): ClinicalProfile {
+export function getNandaNic(concern: string, bp?: string, cbg?: string, temp?: string): ClinicalProfile {
   const normConcern = concern.toLowerCase();
   
-  // Specific BP/CBG logic first (Quantitative)
   const bpSys = bp ? parseInt(bp.split('/')[0]) : 0;
   const cbgVal = cbg ? parseInt(cbg) : 0;
+  const tempVal = temp ? parseFloat(temp) : 0;
 
+  if (normConcern.includes('bleed') || normConcern.includes('uterine') || normConcern.includes('mens') || normConcern.includes('regla')) return CLINICAL_MAP.bleeding;
   if (bpSys >= 140) return CLINICAL_MAP.hypertension;
   if (cbgVal > 0 && (cbgVal < 70 || cbgVal > 180)) return CLINICAL_MAP.diabetes;
+  if (tempVal >= 38.5) return CLINICAL_MAP.dengue;
 
-  // Keyword matching (Qualitative)
-  if (normConcern.includes('bp') || normConcern.includes('tension')) return CLINICAL_MAP.hypertension;
-  if (normConcern.includes('sugar') || normConcern.includes('diabetes')) return CLINICAL_MAP.diabetes;
-  if (normConcern.includes('cough') || normConcern.includes('tb') || normConcern.includes('tuberculosis')) return CLINICAL_MAP.tb;
+  if (normConcern.includes('bp') || normConcern.includes('tension') || normConcern.includes('hipertension')) return CLINICAL_MAP.hypertension;
+  if (normConcern.includes('sugar') || normConcern.includes('diabetes') || normConcern.includes('glucose')) return CLINICAL_MAP.diabetes;
+  if (normConcern.includes('cough') && (normConcern.includes('weeks') || normConcern.includes('matagal'))) return CLINICAL_MAP.tb;
+  if (normConcern.includes('pneumonia') || normConcern.includes('pulmonyas') || normConcern.includes('hingal')) return CLINICAL_MAP.pneumonia;
   if (normConcern.includes('dengue') || normConcern.includes('fever') || normConcern.includes('lagnat')) return CLINICAL_MAP.dengue;
-  if (normConcern.includes('asthma') || normConcern.includes('wheezing')) return CLINICAL_MAP.asthma;
-  if (normConcern.includes('itch') || normConcern.includes('rash') || normConcern.includes('skin')) return CLINICAL_MAP.skin;
-  if (normConcern.includes('uti') || normConcern.includes('urine') || normConcern.includes('pee')) return CLINICAL_MAP.uti;
-  if (normConcern.includes('buntis') || normConcern.includes('pregnant') || normConcern.includes('prenatal')) return CLINICAL_MAP.prenatal;
+  if (normConcern.includes('diarrhea') || normConcern.includes('lbm') || normConcern.includes('tiyan') || normConcern.includes('gastro')) return CLINICAL_MAP.gastroenteritis;
+  if (normConcern.includes('arthritis') || normConcern.includes('joint') || normConcern.includes('rayuma') || normConcern.includes('stiff')) return CLINICAL_MAP.arthritis;
+  if (normConcern.includes('asthma') || normConcern.includes('wheezing') || normConcern.includes('hika')) return CLINICAL_MAP.asthma;
+  if (normConcern.includes('itch') || normConcern.includes('rash') || normConcern.includes('skin') || normConcern.includes('kati')) return CLINICAL_MAP.skin;
+  if (normConcern.includes('uti') || normConcern.includes('urine') || normConcern.includes('pee') || normConcern.includes('balisawsaw')) return CLINICAL_MAP.uti;
+  if (normConcern.includes('buntis') || normConcern.includes('pregnant') || normConcern.includes('prenatal') || normConcern.includes('checkup')) return CLINICAL_MAP.prenatal;
   if (normConcern.includes('bronchitis')) return CLINICAL_MAP.bronchitis;
 
-  // Default fallback
-  return {
-    diagnosis: "Z00.0 (General Adult Medical Examination) — NANDA-I 00262 (Health Self-Management)",
-    explanation: "General wellness check. Encouraging preventive monitoring and health-seeking behavior.",
-    nic: [
-      "NIC 5510 (Health Education): General wellness and preventive care",
-      "NIC 6610 (Risk Identification): Update family medical history",
-      "NIC 5440 (Support System Enhancement): Identify community health resources"
-    ],
-    noc: [
-      "NOC 1606 (Health Compliance Behavior): Adhere to follow-up schedule",
-      "NOC 1805 (Knowledge: Health Resources): Patient knows RHU schedule"
-    ]
-  };
+  return CLINICAL_MAP.wellness;
 }
