@@ -1,0 +1,7 @@
+{
+  "name": "RHU-CARE",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react"
+}
