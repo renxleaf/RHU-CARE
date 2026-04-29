@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: #F8FAFC;
+  --color-panel: #FFFFFF;
+  --color-panel2: #F1F5F9;
+  --color-border: #E2E8F0;
+  --color-border2: #CBD5E1;
+  --color-txt: #1E293B;
+  --color-txt2: #64748B;
+  --color-txt3: #94A3B8;
+  --color-sidebar: #0F172A;
+  --color-sidebar-item: #94A3B8;
+  --color-sidebar-active: #1E293B;
+  --color-accent: #38BDF8;
+  
+  --color-blue: #38BDF8;
+  --color-blue-l: #E0F2FE;
+  --color-blue-m: #7DD3FC;
+  --color-blue-d: #0369A1;
+  
+  --color-green: #166534;
+  --color-green-l: #DCFCE7;
+  --color-green-m: #4ADE80;
+  
+  --color-red: #991B1B;
+  --color-red-l: #FEE2E2;
+  --color-red-m: #F87171;
+  
+  --color-amber: #854D0E;
+  --color-amber-l: #FEF9C3;
+  --color-amber-m: #FACC15;
+  
+  --color-teal: #0F766E;
+  --color-teal-l: #CCFBF1;
+  --color-teal-m: #2DD4BF;
+  
+  --color-purple: #6B21A8;
+  --color-purple-l: #F3E8FF;
+  --color-purple-m: #A855F7;
+
+  --radius-r: 8px;
+  --radius-r-lg: 12px;
+  --radius-r-xl: 16px;
+
+  --shadow-sh: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-sh-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+@layer base {
+  body {
+    @apply bg-bg text-txt font-sans text-sm leading-relaxed;
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 font-semibold transition-all active:scale-95 disabled:opacity-50;
+    border-radius: var(--radius-r);
+    border: 1.5px solid var(--color-border);
+    background: var(--color-panel);
+    font-size: 13px;
+  }
+
+  .btn-p {
+    @apply bg-sidebar text-white border-sidebar active:bg-txt;
+  }
+
+  .btn-s {
+    @apply bg-green-l text-green border-green-m;
+  }
+
+  .btn-d {
+    @apply bg-red-l text-red border-red-m;
+  }
+
+  .btn-w {
+    @apply bg-amber-l text-amber border-amber-m;
+  }
+
+  .card {
+    @apply bg-panel border border-border shadow-sh mb-6;
+    border-radius: var(--radius-r-lg);
+    padding: 24px;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-2.5 bg-panel2 border border-border outline-none transition-colors focus:border-accent placeholder:text-txt3;
+    border-radius: var(--radius-r);
+    font-size: 14px;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border whitespace-nowrap;
+  }
+}
+
+@layer utilities {
+  @media print {
+    aside, header, button, .no-print {
+      display: none !important;
+    }
+    main {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .card {
+      box-shadow: none !important;
+      border: 1px solid #ddd !important;
+    }
+    .min-h-screen {
+      min-height: auto !important;
+    }
+    body {
+      background: white !important;
+    }
+  }
+}

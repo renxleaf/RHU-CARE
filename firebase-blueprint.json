@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "QueueItem": {
+      "title": "Queue Item",
+      "description": "A patient in the clinical queue",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "age": { "type": "string" },
+        "sex": { "type": "string" },
+        "concern": { "type": "string" },
+        "priority": { "type": "string", "enum": ["regular", "urgent"] },
+        "philhealth": { "type": "string" },
+        "status": { "type": "string", "enum": ["Waiting", "Called", "In Consult", "Done"] },
+        "av": { "type": "string" },
+        "initials": { "type": "string" },
+        "date": { "type": "string" },
+        "addedAt": { "type": "number" },
+        "addedBy": { "type": "string" },
+        "doneAt": { "type": "string" },
+        "notes": { "type": "string" },
+        "medications": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "hpi": { "type": "string" },
+        "objective": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "plan": { "type": "string" },
+        "vitals": { "type": "object" }
+      },
+      "required": ["id", "name", "status", "date"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "A registered patient record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "age": { "type": "string" },
+        "sex": { "type": "string" },
+        "dob": { "type": "string" },
+        "address": { "type": "string" },
+        "philhealth": { "type": "string" },
+        "condition": { "type": "string" },
+        "contact": { "type": "string" },
+        "lastVisit": { "type": "string" },
+        "av": { "type": "string" },
+        "initials": { "type": "string" },
+        "registeredAt": { "type": "string" },
+        "registeredBy": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "A scheduled clinical appointment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "type": { "type": "string" },
+        "facility": { "type": "string" },
+        "status": { "type": "string" },
+        "bookedAt": { "type": "string" },
+        "bookedBy": { "type": "string" }
+      },
+      "required": ["id", "name", "date", "time"]
+    },
+    "Dependent": {
+      "title": "Dependent",
+      "description": "A family member linked to a household head",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "head": { "type": "string" },
+        "dependent": { "type": "string" },
+        "relationship": { "type": "string" },
+        "age": { "type": "string" },
+        "conditions": { "type": "string" },
+        "lastVisit": { "type": "string" },
+        "addedBy": { "type": "string" }
+      },
+      "required": ["id", "head", "dependent"]
+    },
+    "TransportTicket": {
+      "title": "Transport Ticket",
+      "description": "A patient transport or referral request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patient": { "type": "string" },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "urgency": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string" },
+        "requestedAt": { "type": "string" },
+        "requestedBy": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "patient", "status"]
+    }
+  },
+  "firestore": {
+    "/queue/{queueId}": {
+      "schema": "QueueItem",
+      "description": "Clinical queue items"
+    },
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patient records"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Scheduled appointments"
+    },
+    "/dependents/{dependentId}": {
+      "schema": "Dependent",
+      "description": "Household dependents"
+    },
+    "/transport/{transportId}": {
+      "schema": "TransportTicket",
+      "description": "Transport requests"
+    }
+  }
+}

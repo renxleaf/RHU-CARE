@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default Deny Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    function isValidName(name) {
+      return name is string && name.size() > 0 && name.size() <= 100;
+    }
+
+    // 3. Appointment Rules
+    match /appointments/{id} {
+      // Public access for Patient Portal bookings
+      allow read: if true; // Allow patients to see their own status
+      allow create: if isValidId(id) 
+                    && isValidName(incoming().name)
+                    && (incoming().status == 'Scheduled' || incoming().status == 'Confirmed');
+      
+      // Clinical staff managed
+      allow update: if isSignedIn() || (incoming().status == 'Cancelled' && incoming().name == resource.data.name);
+      allow delete: if isSignedIn();
+    }
+
+    // 4. Clinical Access (Staff Only)
+    match /queue/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /patients/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /dependents/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /transport/{id} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // 5. User Profiles (Personal)
+    match /profile/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+  }
+}

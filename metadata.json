@@ -1,0 +1,6 @@
+{
+  "name": "RHU-CARE",
+  "description": "Offline-first EHR and Queueing system for Rural Health Units, specifically tailored for Calauan, Laguna. Features NurseAI NANDA-I diagnostics and SEIPS-compliant human factors design.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
